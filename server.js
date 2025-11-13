@@ -34,6 +34,8 @@ app.use('/api', async (req, res) => {
     const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''
     const url = `${BACKEND_URL}${backendPath}${queryString}`
     
+    console.log(`Proxying ${req.method} ${url}`)
+    
     const options = {
       method: req.method,
       headers: {
@@ -49,12 +51,44 @@ app.use('/api', async (req, res) => {
     }
     
     const response = await fetch(url, options)
-    const data = await response.json()
     
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || ''
+    let data
+    
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError)
+        const text = await response.text()
+        console.error('Response text:', text.substring(0, 200))
+        return res.status(500).json({ 
+          success: false,
+          error: 'Invalid JSON response from backend',
+          message: 'Backend returned non-JSON response'
+        })
+      }
+    } else {
+      // Non-JSON response (likely HTML error page)
+      const text = await response.text()
+      console.error(`Backend returned non-JSON (${contentType}):`, text.substring(0, 200))
+      return res.status(response.status || 500).json({
+        success: false,
+        error: `Backend error: ${response.status} ${response.statusText}`,
+        message: 'The backend service returned an error. Please check if the endpoint exists.'
+      })
+    }
+    
+    // Forward the response
     res.status(response.status).json(data)
   } catch (error) {
-    console.error('Proxy error:', error)
-    res.status(500).json({ error: 'Backend service unavailable' })
+    console.error('Proxy error:', error.message)
+    res.status(500).json({ 
+      success: false,
+      error: 'Backend service unavailable',
+      message: error.message
+    })
   }
 })
 

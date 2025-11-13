@@ -299,9 +299,12 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     return { success: true }
   }
 
+  // Check if the endpoint doesn't exist (404) or other error
+  const errorMessage = result.error || result.data?.error || result.data?.message || 'Kunde inte skapa checkout-session. Försök igen.'
+  
   return {
     success: false,
-    error: result.error || 'Kunde inte skapa checkout-session. Försök igen.'
+    error: errorMessage
   }
 }
 

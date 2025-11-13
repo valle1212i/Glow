@@ -22,7 +22,11 @@ const Cart = () => {
     
     setIsProcessing(true)
     try {
-      await createCheckoutSession(cartItems, getCheckoutPriceId)
+      const result = await createCheckoutSession(cartItems, getCheckoutPriceId)
+      if (!result.success) {
+        alert(result.error || 'Ett fel uppstod vid checkout. Försök igen.')
+      }
+      // If successful, redirect happens in createCheckoutSession
     } catch (error) {
       console.error('Checkout error:', error)
       alert('Ett fel uppstod vid checkout. Försök igen.')
