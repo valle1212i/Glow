@@ -43,7 +43,7 @@ export const getCSRFToken = async () => {
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CSRF}`, {
       credentials: 'include'
-      // Note: AbortSignal.timeout() may not be available in all browsers
+      // Note: Timeout handling can be added if needed
     })
     
     // Check if response is OK and JSON

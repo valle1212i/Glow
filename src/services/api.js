@@ -223,8 +223,7 @@ export const trackEvent = async (eventType, eventData = {}) => {
       },
       credentials: 'include',
       body: JSON.stringify(payload)
-      // Note: AbortSignal.timeout() may not be available in all browsers
-      // If needed, we can add a polyfill or use setTimeout with AbortController
+      // Note: Timeout handling can be added if needed for better UX
     })
     
     // Analytics tracking is fire-and-forget, don't throw errors
@@ -266,7 +265,7 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
           'X-Tenant': API_CONFIG.TENANT
         },
         credentials: 'include'
-        // Note: AbortSignal.timeout() may not be available in all browsers
+        // Note: Timeout handling can be added if needed
       }
     )
 
