@@ -96,14 +96,34 @@ app.use('/api', async (req, res) => {
     // Check if backend is setting cookies (for session management)
     const setCookieHeader = response.headers.get('set-cookie')
     if (setCookieHeader) {
-      console.log('Backend is setting cookies:', setCookieHeader.substring(0, 100) + '...')
-      // Store backend session cookies for future requests (especially for CSRF validation)
-      // Extract session cookie from Set-Cookie header
-      const sessionCookieMatch = setCookieHeader.match(/([^;]+)/)
-      if (sessionCookieMatch) {
-        backendSessionCookies = sessionCookieMatch[1]
-        console.log('Stored backend session cookie for future requests')
+      console.log('Backend is setting cookies:', setCookieHeader.substring(0, 200) + '...')
+      
+      // Extract ALL cookies from Set-Cookie header(s)
+      // Set-Cookie can be a single string or an array
+      const cookieHeaders = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader]
+      const cookies = []
+      
+      for (const cookieHeader of cookieHeaders) {
+        // Each Set-Cookie header can contain multiple cookies separated by commas (rare) or be a single cookie
+        // Extract cookie name=value pairs (everything before the first semicolon)
+        const cookieMatches = cookieHeader.match(/([^=]+=[^;]+)/g)
+        if (cookieMatches) {
+          cookies.push(...cookieMatches)
+        } else {
+          // Fallback: extract first cookie name=value
+          const match = cookieHeader.match(/([^=]+=[^;]+)/)
+          if (match) {
+            cookies.push(match[1])
+          }
+        }
       }
+      
+      // Combine all cookies into a single Cookie header string
+      if (cookies.length > 0) {
+        backendSessionCookies = cookies.join('; ')
+        console.log('Stored backend session cookies for future requests:', backendSessionCookies.substring(0, 100) + '...')
+      }
+      
       // Note: We can't forward Set-Cookie headers to the client due to domain mismatch
       // The backend sets cookies for source-database.onrender.com, but client is on glow-test.onrender.com
       // So we store them in the proxy and reuse them for backend requests
