@@ -1,8 +1,11 @@
 // Backend API Configuration
 export const API_CONFIG = {
-  // Backend API base URL - update this to your actual backend URL
-  // Use VITE_API_URL environment variable (Vite uses import.meta.env instead of process.env)
-  BASE_URL: import.meta.env.VITE_API_URL || 'https://source-database.onrender.com',
+  // Backend API base URL
+  // In production, use relative URL to go through Express proxy (avoids CORS)
+  // In development, use full URL or VITE_API_URL
+  BASE_URL: import.meta.env.PROD 
+    ? '/api' // Use proxy in production
+    : (import.meta.env.VITE_API_URL || 'https://source-database.onrender.com'),
   
   // Tenant identifier for Glow hairdresser
   TENANT: 'hairdresser',
