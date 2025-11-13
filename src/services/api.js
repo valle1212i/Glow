@@ -345,22 +345,33 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     return { success: true }
   }
 
-  // Handle different error cases
+  // Handle different error cases with user-friendly messages
   let errorMessage = 'Kunde inte skapa checkout-session. Försök igen.'
   
   if (result.status === 403) {
-    errorMessage = 'Åtkomst nekad. Kontrollera att backend-tjänsten är konfigurerad korrekt.'
+    errorMessage = 'Åtkomst nekad (403). Backend-endpointen kräver autentisering eller har inte implementerats ännu. Kontakta support för att aktivera Stripe checkout.'
   } else if (result.status === 404) {
-    errorMessage = 'Checkout-endpoint hittades inte. Kontrollera att backend-tjänsten har implementerat Stripe checkout.'
+    errorMessage = 'Checkout-endpoint hittades inte (404). Backend-tjänsten har inte implementerat Stripe checkout ännu. Kontakta support.'
   } else if (result.status === 502 || result.status === 503) {
     errorMessage = 'Backend-tjänsten är tillfälligt otillgänglig. Försök igen om en stund.'
+  } else if (result.message) {
+    // Use the message from backend if available
+    errorMessage = result.message
   } else {
     errorMessage = result.error || result.data?.error || result.data?.message || errorMessage
   }
   
+  console.error('Checkout failed:', {
+    status: result.status,
+    error: result.error,
+    message: result.message,
+    data: result.data
+  })
+  
   return {
     success: false,
-    error: errorMessage
+    error: errorMessage,
+    status: result.status
   }
 }
 

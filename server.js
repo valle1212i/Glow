@@ -52,6 +52,9 @@ app.use('/api', async (req, res) => {
     
     const response = await fetch(url, options)
     
+    // Log response status for debugging
+    console.log(`Backend response: ${response.status} ${response.statusText} for ${req.method} ${url}`)
+    
     // Check content type before parsing
     const contentType = response.headers.get('content-type') || ''
     let data
@@ -59,6 +62,7 @@ app.use('/api', async (req, res) => {
     if (contentType.includes('application/json')) {
       try {
         data = await response.json()
+        console.log(`Backend JSON response for ${req.path}:`, JSON.stringify(data).substring(0, 200))
       } catch (parseError) {
         console.error('Failed to parse JSON response:', parseError)
         const text = await response.text()
@@ -66,21 +70,27 @@ app.use('/api', async (req, res) => {
         return res.status(500).json({ 
           success: false,
           error: 'Invalid JSON response from backend',
-          message: 'Backend returned non-JSON response'
+          message: 'Backend returned non-JSON response',
+          status: response.status
         })
       }
     } else {
       // Non-JSON response (likely HTML error page)
       const text = await response.text()
-      console.error(`Backend returned non-JSON (${contentType}):`, text.substring(0, 200))
+      console.error(`Backend returned non-JSON (${contentType}) for ${req.path}:`, text.substring(0, 300))
       return res.status(response.status || 500).json({
         success: false,
         error: `Backend error: ${response.status} ${response.statusText}`,
-        message: 'The backend service returned an error. Please check if the endpoint exists.'
+        message: response.status === 403 
+          ? 'Access forbidden. The endpoint may require authentication or the backend may not have implemented this endpoint yet.'
+          : response.status === 404
+          ? 'Endpoint not found. The backend may not have implemented this endpoint yet.'
+          : 'The backend service returned an error. Please check if the endpoint exists.',
+        status: response.status
       })
     }
     
-    // Forward the response
+    // Forward the response (including error responses from backend)
     res.status(response.status).json(data)
   } catch (error) {
     console.error('Proxy error:', error.message)
