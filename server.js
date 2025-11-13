@@ -52,7 +52,8 @@ app.use('/api', async (req, res) => {
     // Forward CSRF token if present (Express normalizes headers to lowercase)
     if (req.headers['x-csrf-token']) {
       options.headers['X-CSRF-Token'] = req.headers['x-csrf-token']
-      console.log('Including CSRF token in backend request')
+      console.log('Including CSRF token in backend request:', req.headers['x-csrf-token'].substring(0, 20) + '...')
+      console.log('Full headers being sent to backend:', JSON.stringify(options.headers, null, 2))
     } else {
       console.warn('CSRF token missing in request headers!')
     }

@@ -21,7 +21,8 @@ const apiRequest = async (endpoint, options = {}) => {
   // Add CSRF token if available
   if (csrfToken) {
     headers['X-CSRF-Token'] = csrfToken
-    console.log('Including CSRF token in request:', csrfToken.substring(0, 10) + '...')
+    console.log('Frontend: Including CSRF token in request:', csrfToken.substring(0, 20) + '...')
+    console.log('Frontend: Full request headers:', JSON.stringify(headers, null, 2))
   } else {
     console.warn('CSRF token is empty, request may fail if backend requires it')
   }
