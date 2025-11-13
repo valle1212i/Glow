@@ -9,6 +9,10 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const BACKEND_URL = process.env.VITE_API_URL || 'https://source-database.onrender.com'
 
+// Store backend session cookies (for CSRF token validation)
+// Key: session identifier, Value: cookie string
+let backendSessionCookies = null
+
 // Middleware to parse JSON
 app.use(express.json())
 
@@ -51,13 +55,16 @@ app.use('/api', async (req, res) => {
       credentials: 'include'
     }
     
-    // Forward cookies from the original request
+    // Forward cookies from the original request OR use stored backend session cookies
     if (req.headers.cookie) {
       options.headers['Cookie'] = req.headers.cookie
-      console.log('Forwarding cookies to backend:', req.headers.cookie.substring(0, 50) + '...')
+      console.log('Forwarding client cookies to backend:', req.headers.cookie.substring(0, 50) + '...')
+    } else if (backendSessionCookies) {
+      // Use stored backend session cookies (established from CSRF token fetch)
+      options.headers['Cookie'] = backendSessionCookies
+      console.log('Using stored backend session cookies:', backendSessionCookies.substring(0, 50) + '...')
     } else {
-      console.warn('No cookies in original request - this may cause CSRF validation to fail!')
-      console.log('Available request headers:', Object.keys(req.headers))
+      console.warn('No cookies available - this may cause CSRF validation to fail!')
     }
     
     // Forward CSRF token if present (Express normalizes headers to lowercase)
@@ -90,8 +97,16 @@ app.use('/api', async (req, res) => {
     const setCookieHeader = response.headers.get('set-cookie')
     if (setCookieHeader) {
       console.log('Backend is setting cookies:', setCookieHeader.substring(0, 100) + '...')
+      // Store backend session cookies for future requests (especially for CSRF validation)
+      // Extract session cookie from Set-Cookie header
+      const sessionCookieMatch = setCookieHeader.match(/([^;]+)/)
+      if (sessionCookieMatch) {
+        backendSessionCookies = sessionCookieMatch[1]
+        console.log('Stored backend session cookie for future requests')
+      }
       // Note: We can't forward Set-Cookie headers to the client due to domain mismatch
       // The backend sets cookies for source-database.onrender.com, but client is on glow-test.onrender.com
+      // So we store them in the proxy and reuse them for backend requests
     }
     
     // Check content type before parsing
