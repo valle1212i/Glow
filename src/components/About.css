@@ -1,0 +1,116 @@
+.about-page {
+  position: relative;
+  padding: 0;
+  background: var(--primary-white);
+  overflow: hidden;
+}
+
+.about-hero-image {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  min-height: 500px;
+  background: url('/u6293379286_create_a_video_of_a_lady_having_her_head_out_of_t_46ea8f01-644b-4a6b-9332-e8a39e4715f2_0.png') center/cover;
+  background-size: cover;
+  background-position: center;
+  margin: 140px 0 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.about-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.about-title {
+  font-size: 3rem;
+  font-weight: 400;
+  color: var(--primary-white);
+  letter-spacing: 1px;
+}
+
+.about-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 30px;
+}
+
+.about-section {
+  margin-bottom: 100px;
+  max-width: 600px;
+}
+
+.section-right {
+  margin-left: auto;
+  text-align: right;
+}
+
+.section-left {
+  margin-right: auto;
+  text-align: left;
+}
+
+.section-heading {
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--primary-black);
+  margin-bottom: 25px;
+  letter-spacing: 0.5px;
+}
+
+.section-text {
+  line-height: 1.8;
+}
+
+.section-text p {
+  font-size: 1rem;
+  color: var(--text-gray);
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+.section-text p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .about-page {
+    padding: 120px 0 60px;
+  }
+
+  .about-title {
+    font-size: 2rem;
+  }
+
+  .section-heading {
+    font-size: 1.3rem;
+  }
+
+  .section-text p {
+    font-size: 0.95rem;
+  }
+
+  .about-header {
+    margin-bottom: 50px;
+  }
+
+  .about-section {
+    margin-bottom: 40px;
+  }
+}
+

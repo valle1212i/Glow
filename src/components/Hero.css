@@ -1,0 +1,166 @@
+.hero {
+  position: relative;
+  height: 120vh;
+  min-height: 720px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  margin-top: 120px;
+}
+
+/* Image box container that slides down */
+.hero-image-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+  will-change: transform, clip-path, opacity;
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+.hero-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+.hero-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('/u6293379286_create_a_video_of_a_lady_having_her_head_out_of_t_46ea8f01-644b-4a6b-9332-e8a39e4715f2_1.png') center/cover;
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.hero-content {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  text-align: center;
+  color: var(--primary-white);
+  pointer-events: none;
+}
+
+.hero-content * {
+  pointer-events: auto;
+}
+
+.hero-text {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-subtitle {
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.hero-title {
+  font-size: 7rem;
+  font-weight: 300;
+  margin-bottom: 40px;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.hero-button {
+  display: inline-block;
+  padding: 16px 50px;
+  background: var(--primary-white);
+  color: var(--primary-black);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.9rem;
+  border: 2px solid var(--primary-white);
+  transition: all 0.3s ease;
+}
+
+.hero-button:hover {
+  background: transparent;
+  color: var(--primary-white);
+}
+
+.hero-scroll-indicator {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.scroll-arrow {
+  width: 2px;
+  height: 30px;
+  background: var(--primary-white);
+  margin: 0 auto;
+}
+
+.scroll-arrow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--primary-white);
+  border-bottom: 2px solid var(--primary-white);
+  transform: rotate(45deg);
+}
+
+@media (max-width: 768px) {
+  .hero {
+    min-height: 500px;
+  }
+
+  .hero-title {
+    font-size: 3.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+  }
+
+  .hero-button {
+    padding: 14px 40px;
+    font-size: 0.85rem;
+  }
+}
+

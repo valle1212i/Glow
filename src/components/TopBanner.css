@@ -1,0 +1,30 @@
+.top-banner {
+  background: var(--primary-black);
+  color: var(--primary-white);
+  padding: 10px 0;
+  font-size: 0.75rem;
+  text-align: center;
+  position: relative;
+  z-index: 1001;
+}
+
+.banner-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.banner-content span {
+  display: inline-block;
+}
+
+@media (max-width: 768px) {
+  .banner-content {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.7rem;
+  }
+}
+

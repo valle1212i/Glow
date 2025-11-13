@@ -1,0 +1,19 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-container {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+}
+
+.page-container h1 {
+  font-size: 3rem;
+  text-align: center;
+}
+
