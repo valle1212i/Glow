@@ -16,7 +16,7 @@ const Experience = () => {
       title: 'Premium Products',
       description: 'Professional hair care',
       link: '/shop',
-      image: 'https://images.unsplash.com/photo-1522338247332-0c3bf0c60d83?w=800&q=80',
+      image: '/bildforonesection.png',
       category: 'Shop'
     },
     {
