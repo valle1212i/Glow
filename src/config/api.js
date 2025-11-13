@@ -11,21 +11,23 @@ export const API_CONFIG = {
   TENANT: 'hairdresser',
   
   // API endpoints
+  // In production, these are relative to BASE_URL (/api), so they don't include /api prefix
+  // In development, BASE_URL is the full backend URL, so endpoints include /api prefix
   ENDPOINTS: {
     // Contact Messages (used for all public forms: appointments, subscriptions, contact)
-    MESSAGES: '/api/messages',
+    MESSAGES: import.meta.env.PROD ? '/messages' : '/api/messages',
     
     // CSRF Token
-    CSRF: '/api/auth/csrf',
+    CSRF: import.meta.env.PROD ? '/auth/csrf' : '/api/auth/csrf',
     
     // Analytics
-    ANALYTICS: '/api/analytics/track',
+    ANALYTICS: import.meta.env.PROD ? '/analytics/track' : '/api/analytics/track',
     
     // Campaign Price Check
-    CAMPAIGN_PRICE: '/api/campaigns/price',
+    CAMPAIGN_PRICE: import.meta.env.PROD ? '/campaigns/price' : '/api/campaigns/price',
     
     // Stripe Checkout
-    STRIPE_CHECKOUT: '/api/stripe/checkout'
+    STRIPE_CHECKOUT: import.meta.env.PROD ? '/stripe/checkout' : '/api/stripe/checkout'
   }
 }
 
