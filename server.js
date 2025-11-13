@@ -94,34 +94,57 @@ app.use('/api', async (req, res) => {
     console.log(`Backend response: ${response.status} ${response.statusText} for ${req.method} ${url}`)
     
     // Check if backend is setting cookies (for session management)
+    // Note: response.headers.get('set-cookie') might only return first cookie
+    // We need to get all Set-Cookie headers
+    const setCookieHeaders = []
+    
+    // Try to get all set-cookie headers (Node.js fetch might return as array or comma-separated)
     const setCookieHeader = response.headers.get('set-cookie')
     if (setCookieHeader) {
-      console.log('Backend is setting cookies:', setCookieHeader.substring(0, 200) + '...')
+      // If it's already an array, use it directly
+      if (Array.isArray(setCookieHeader)) {
+        setCookieHeaders.push(...setCookieHeader)
+      } else {
+        // If it's a string, it might contain multiple cookies separated by commas
+        // But actually, each Set-Cookie header is separate, so we need to check headers.raw()
+        setCookieHeaders.push(setCookieHeader)
+      }
+    }
+    
+    // Also check headers.raw() for all set-cookie headers (Node.js fetch API)
+    try {
+      const rawHeaders = response.headers.raw()
+      if (rawHeaders['set-cookie']) {
+        setCookieHeaders.push(...rawHeaders['set-cookie'])
+      }
+    } catch (e) {
+      // headers.raw() might not be available in all environments
+    }
+    
+    if (setCookieHeaders.length > 0) {
+      console.log('Backend is setting cookies:', setCookieHeaders.join(' | ').substring(0, 300) + '...')
       
-      // Extract ALL cookies from Set-Cookie header(s)
-      // Set-Cookie can be a single string or an array
-      const cookieHeaders = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader]
+      // Extract cookie name=value pairs from each Set-Cookie header
       const cookies = []
-      
-      for (const cookieHeader of cookieHeaders) {
-        // Each Set-Cookie header can contain multiple cookies separated by commas (rare) or be a single cookie
-        // Extract cookie name=value pairs (everything before the first semicolon)
-        const cookieMatches = cookieHeader.match(/([^=]+=[^;]+)/g)
-        if (cookieMatches) {
-          cookies.push(...cookieMatches)
-        } else {
-          // Fallback: extract first cookie name=value
-          const match = cookieHeader.match(/([^=]+=[^;]+)/)
-          if (match) {
-            cookies.push(match[1])
-          }
+      for (const cookieHeader of setCookieHeaders) {
+        // Extract cookie name=value (everything before the first semicolon)
+        const match = cookieHeader.match(/([^=]+=[^;]+)/)
+        if (match) {
+          cookies.push(match[1])
         }
       }
       
       // Combine all cookies into a single Cookie header string
       if (cookies.length > 0) {
-        backendSessionCookies = cookies.join('; ')
-        console.log('Stored backend session cookies for future requests:', backendSessionCookies.substring(0, 100) + '...')
+        // Merge with existing cookies if any
+        if (backendSessionCookies) {
+          const existingCookies = backendSessionCookies.split('; ').map(c => c.trim())
+          const allCookies = [...new Set([...existingCookies, ...cookies])] // Remove duplicates
+          backendSessionCookies = allCookies.join('; ')
+        } else {
+          backendSessionCookies = cookies.join('; ')
+        }
+        console.log('Stored backend session cookies for future requests:', backendSessionCookies.substring(0, 150) + '...')
       }
       
       // Note: We can't forward Set-Cookie headers to the client due to domain mismatch
