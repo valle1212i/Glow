@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { getCampaignPrice } from '../services/api'
 
 const CartContext = createContext()
 
@@ -14,7 +15,55 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([])
   const [isCartOpen, setIsCartOpen] = useState(false)
 
-  const addToCart = (product) => {
+  // Check for campaign prices when cart items change (only for items not yet checked)
+  useEffect(() => {
+    const checkCampaignPrices = async () => {
+      const itemsToCheck = cartItems.filter(item => item.productId && !item.campaignPriceChecked)
+      
+      if (itemsToCheck.length === 0) {
+        return // No items need checking
+      }
+
+      const updatedItems = await Promise.all(
+        cartItems.map(async (item) => {
+          if (item.productId && !item.campaignPriceChecked) {
+            const campaignData = await getCampaignPrice(item.productId, item.priceId)
+            return {
+              ...item,
+              campaignPriceId: campaignData.priceId,
+              hasCampaign: campaignData.hasCampaign,
+              campaignName: campaignData.campaignName,
+              campaignPriceChecked: true
+            }
+          }
+          return item
+        })
+      )
+      
+      setCartItems(updatedItems)
+    }
+
+    if (cartItems.length > 0) {
+      checkCampaignPrices()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItems.length]) // Only run when cart items count changes
+
+  const addToCart = async (product) => {
+    // Check for campaign price when adding to cart
+    let finalProduct = { ...product, quantity: 1, campaignPriceChecked: false }
+    
+    if (product.productId) {
+      const campaignData = await getCampaignPrice(product.productId, product.priceId)
+      finalProduct = {
+        ...finalProduct,
+        campaignPriceId: campaignData.priceId,
+        hasCampaign: campaignData.hasCampaign,
+        campaignName: campaignData.campaignName,
+        campaignPriceChecked: true
+      }
+    }
+
     setCartItems(prev => {
       const existingItem = prev.find(item => item.id === product.id)
       if (existingItem) {
@@ -24,7 +73,7 @@ export const CartProvider = ({ children }) => {
             : item
         )
       }
-      return [...prev, { ...product, quantity: 1 }]
+      return [...prev, finalProduct]
     })
     setIsCartOpen(true)
   }
@@ -46,7 +95,16 @@ export const CartProvider = ({ children }) => {
   }
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
+    return cartItems.reduce((total, item) => {
+      // Use campaign price if available, otherwise use regular price
+      // Note: For now we use the display price, actual Stripe checkout will use campaignPriceId
+      return total + item.price * item.quantity
+    }, 0)
+  }
+
+  // Get the price ID to use for checkout (campaign price if available, otherwise regular)
+  const getCheckoutPriceId = (item) => {
+    return item.campaignPriceId || item.priceId
   }
 
   const getTotalItems = () => {
@@ -62,6 +120,7 @@ export const CartProvider = ({ children }) => {
         updateQuantity,
         getTotalPrice,
         getTotalItems,
+        getCheckoutPriceId,
         isCartOpen,
         setIsCartOpen,
       }}

@@ -78,7 +78,14 @@ const Cart = () => {
                           </div>
                         </div>
                         <div className="cart-item-price">
-                          <p>€{(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                          <div>
+                            {item.hasCampaign && (
+                              <span className="campaign-badge" title={item.campaignName}>
+                                Sale
+                              </span>
+                            )}
+                            <p>€{(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                          </div>
                           <button
                             className="remove-item"
                             onClick={() => removeFromCart(item.id)}

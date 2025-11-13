@@ -214,6 +214,54 @@ export const trackEvent = async (eventType, eventData = {}) => {
 }
 
 /**
+ * Check for campaign price for a product
+ * Returns campaign price ID if available, otherwise returns regular price ID
+ */
+export const getCampaignPrice = async (productId, regularPriceId) => {
+  if (!productId) {
+    return { success: true, priceId: regularPriceId, hasCampaign: false }
+  }
+
+  try {
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CAMPAIGN_PRICE}/${productId}?tenant=${API_CONFIG.TENANT}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant': API_CONFIG.TENANT
+        },
+        credentials: 'include'
+      }
+    )
+
+    if (!response.ok) {
+      // If campaign check fails, fallback to regular price
+      console.warn('Campaign price check failed, using regular price')
+      return { success: true, priceId: regularPriceId, hasCampaign: false }
+    }
+
+    const data = await response.json()
+
+    if (data.success && data.hasCampaignPrice) {
+      return {
+        success: true,
+        priceId: data.priceId,
+        hasCampaign: true,
+        campaignName: data.campaignName
+      }
+    }
+
+    // No campaign price available, use regular price
+    return { success: true, priceId: regularPriceId, hasCampaign: false }
+  } catch (error) {
+    // Error checking campaign, fallback to regular price
+    console.warn('Error checking campaign price:', error)
+    return { success: true, priceId: regularPriceId, hasCampaign: false }
+  }
+}
+
+/**
  * Get or create session ID
  */
 const getSessionId = () => {

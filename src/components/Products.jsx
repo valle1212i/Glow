@@ -13,56 +13,72 @@ const Products = () => {
       name: 'Volume Shampoo',
       description: 'EXTRA BODY + DEEP CLEANSE',
       price: 28,
-      image: '/glowvolumeschamppoo.png'
+      image: '/glowvolumeschamppoo.png',
+      productId: 'prod_TPyEGCJUN8hjjP',
+      priceId: 'price_1ST8INP6vvUUervCyRnKqKzU'
     },
     {
       id: 2,
       name: 'Hydrating Conditioner',
       description: 'MOISTURE + SMOOTH FINISH',
       price: 28,
-      image: '/twobottles.png'
+      image: '/twobottles.png',
+      productId: 'prod_TPyF74HUAMTa5M',
+      priceId: 'price_1ST8JQP6vvUUervC7t34RVoE'
     },
     {
       id: 3,
       name: 'Styling Cream',
       description: 'FLEXIBLE HOLD + NATURAL SHINE',
       price: 32,
-      image: '/showerbottle.png'
+      image: '/showerbottle.png',
+      productId: 'prod_TPyG479iBgxuPf',
+      priceId: 'price_1ST8KJP6vvUUervCuPav8iwH'
     },
     {
       id: 4,
       name: 'Texturizing Spray',
       description: 'BODY BUILDER + SOFT HOLD',
       price: 28,
-      image: '/bottleisclean.png'
+      image: '/bottleisclean.png',
+      productId: 'prod_TPyIf38nsbuiKs',
+      priceId: 'price_1ST8M9P6vvUUervC1eUgI0Hp'
     },
     {
       id: 5,
       name: 'Heat Protectant',
       description: 'SHIELD + CONDITION',
       price: 30,
-      image: '/lotion.png'
+      image: '/lotion.png',
+      productId: 'prod_TPyJN5BCqOrXZC',
+      priceId: 'price_1ST8MpP6vvUUervCN1dU34rM'
     },
     {
       id: 6,
       name: 'Finishing Oil',
       description: 'GLOSS + FRIZZ CONTROL',
       price: 35,
-      image: '/showerbottle.png'
+      image: '/showerbottle.png',
+      productId: 'prod_TPyK9y02nYbvrk',
+      priceId: 'price_1ST8NcP6vvUUervC8ivVHW9p'
     },
     {
       id: 7,
       name: 'Lotion',
       description: 'BODY LOTION + SMOOTH SKIN',
       price: 32,
-      image: '/shower.png'
+      image: '/shower.png',
+      productId: 'prod_TPyLq0IPNEJdOH',
+      priceId: 'price_1ST8OeP6vvUUervCm1YNFPLS'
     },
     {
       id: 8,
       name: 'Salt Water Spray',
       description: 'TEXTURE + WAVY STYLE',
       price: 28,
-      image: '/seasalt.png'
+      image: '/seasalt.png',
+      productId: 'prod_TPyMI03ik6NFBX',
+      priceId: 'price_1ST8PNP6vvUUervCH0SDRr6k'
     }
   ]
 

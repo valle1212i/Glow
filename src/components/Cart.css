@@ -123,9 +123,27 @@
   justify-content: space-between;
 }
 
+.cart-item-price > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
 .cart-item-price p {
   font-weight: 600;
   font-size: 1rem;
+}
+
+.campaign-badge {
+  background: var(--primary-black);
+  color: var(--primary-white);
+  font-size: 0.7rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 2px;
 }
 
 .remove-item {

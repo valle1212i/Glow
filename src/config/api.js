@@ -16,7 +16,10 @@ export const API_CONFIG = {
     CSRF: '/api/auth/csrf',
     
     // Analytics
-    ANALYTICS: '/api/analytics/track'
+    ANALYTICS: '/api/analytics/track',
+    
+    // Campaign Price Check
+    CAMPAIGN_PRICE: '/api/campaigns/price'
   }
 }
 
