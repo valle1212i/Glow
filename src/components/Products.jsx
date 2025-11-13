@@ -13,7 +13,7 @@ const Products = () => {
       name: 'Volume Shampoo',
       description: 'EXTRA BODY + DEEP CLEANSE',
       price: 28,
-      image: '/bottleisclean.png'
+      image: '/glowvolumeschamppoo.png'
     },
     {
       id: 2,

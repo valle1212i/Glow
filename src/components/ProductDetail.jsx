@@ -12,7 +12,7 @@ const allProducts = [
     name: 'Volume Shampoo',
     description: 'EXTRA BODY + DEEP CLEANSE',
     price: 28,
-    image: '/bottleisclean.png',
+    image: '/glowvolumeschamppoo.png',
     fullDescription: 'Our Volume Shampoo provides extra body and deep cleansing for all hair types. Formulated with natural ingredients to add volume and texture while maintaining hair health.'
   },
   {
