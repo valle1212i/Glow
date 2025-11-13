@@ -62,7 +62,7 @@ const Products = () => {
       name: 'Salt Water Spray',
       description: 'TEXTURE + WAVY STYLE',
       price: 28,
-      image: '/bottleisclean.png'
+      image: '/seasalt.png'
     }
   ]
 

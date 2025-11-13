@@ -68,7 +68,7 @@ const allProducts = [
     name: 'Salt Water Spray',
     description: 'TEXTURE + WAVY STYLE',
     price: 28,
-    image: '/bottleisclean.png',
+    image: '/seasalt.png',
     fullDescription: 'Salt water spray that creates natural texture and wavy styles. Mimics the beachy look with added volume and definition.'
   }
 ]
