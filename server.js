@@ -35,14 +35,26 @@ app.use('/api', async (req, res) => {
     const url = `${BACKEND_URL}${backendPath}${queryString}`
     
     console.log(`Proxying ${req.method} ${url}`)
+    console.log('Request headers:', {
+      'x-tenant': req.headers['x-tenant'],
+      'x-csrf-token': req.headers['x-csrf-token'] ? 'present' : 'missing',
+      'content-type': req.headers['content-type']
+    })
     
     const options = {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'X-Tenant': req.headers['x-tenant'] || 'hairdresser',
-        ...(req.headers['x-csrf-token'] && { 'X-CSRF-Token': req.headers['x-csrf-token'] })
+        'X-Tenant': req.headers['x-tenant'] || 'hairdresser'
       }
+    }
+    
+    // Forward CSRF token if present (Express normalizes headers to lowercase)
+    if (req.headers['x-csrf-token']) {
+      options.headers['X-CSRF-Token'] = req.headers['x-csrf-token']
+      console.log('Including CSRF token in backend request')
+    } else {
+      console.warn('CSRF token missing in request headers!')
     }
     
     // Add body for POST/PUT requests
