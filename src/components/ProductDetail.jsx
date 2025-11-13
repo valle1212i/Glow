@@ -12,7 +12,7 @@ const allProducts = [
     name: 'Volume Shampoo',
     description: 'EXTRA BODY + DEEP CLEANSE',
     price: 28,
-    image: 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?w=600&q=80',
+    image: '/bottleisclean.png',
     fullDescription: 'Our Volume Shampoo provides extra body and deep cleansing for all hair types. Formulated with natural ingredients to add volume and texture while maintaining hair health.'
   },
   {
@@ -20,7 +20,7 @@ const allProducts = [
     name: 'Hydrating Conditioner',
     description: 'MOISTURE + SMOOTH FINISH',
     price: 28,
-    image: 'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=600&q=80',
+    image: '/twobottles.png',
     fullDescription: 'Intensive hydrating conditioner that restores moisture and provides a smooth, silky finish. Perfect for dry and damaged hair.'
   },
   {
@@ -28,7 +28,7 @@ const allProducts = [
     name: 'Styling Cream',
     description: 'FLEXIBLE HOLD + NATURAL SHINE',
     price: 32,
-    image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&q=80',
+    image: '/showerbottle.png',
     fullDescription: 'Lightweight styling cream with flexible hold and natural shine. Perfect for creating texture and definition without stiffness.'
   },
   {
@@ -36,7 +36,7 @@ const allProducts = [
     name: 'Texturizing Spray',
     description: 'BODY BUILDER + SOFT HOLD',
     price: 28,
-    image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=600&q=80',
+    image: '/bottleisclean.png',
     fullDescription: 'Texturizing spray that adds body and volume with a soft, natural hold. Ideal for creating beachy waves and textured styles.'
   },
   {
@@ -44,7 +44,7 @@ const allProducts = [
     name: 'Heat Protectant',
     description: 'SHIELD + CONDITION',
     price: 30,
-    image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&q=80',
+    image: '/lotion.png',
     fullDescription: 'Advanced heat protectant that shields hair from thermal damage while conditioning. Use before heat styling for maximum protection.'
   },
   {
@@ -52,7 +52,7 @@ const allProducts = [
     name: 'Finishing Oil',
     description: 'GLOSS + FRIZZ CONTROL',
     price: 35,
-    image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&q=80',
+    image: '/showerbottle.png',
     fullDescription: 'Lightweight finishing oil that adds gloss and controls frizz. Perfect for smoothing flyaways and adding shine to finished styles.'
   },
   {
@@ -60,7 +60,7 @@ const allProducts = [
     name: 'Lotion',
     description: 'BODY LOTION + SMOOTH SKIN',
     price: 32,
-    image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=600&q=80',
+    image: '/shower.png',
     fullDescription: 'Luxurious body lotion that provides deep hydration and smooth skin. Enriched with natural ingredients for all-day moisture.'
   },
   {
@@ -68,7 +68,7 @@ const allProducts = [
     name: 'Salt Water Spray',
     description: 'TEXTURE + WAVY STYLE',
     price: 28,
-    image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=600&q=80',
+    image: '/bottleisclean.png',
     fullDescription: 'Salt water spray that creates natural texture and wavy styles. Mimics the beachy look with added volume and definition.'
   }
 ]

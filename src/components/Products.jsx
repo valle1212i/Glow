@@ -13,56 +13,56 @@ const Products = () => {
       name: 'Volume Shampoo',
       description: 'EXTRA BODY + DEEP CLEANSE',
       price: 28,
-      image: 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?w=600&q=80'
+      image: '/bottleisclean.png'
     },
     {
       id: 2,
       name: 'Hydrating Conditioner',
       description: 'MOISTURE + SMOOTH FINISH',
       price: 28,
-      image: 'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=600&q=80'
+      image: '/twobottles.png'
     },
     {
       id: 3,
       name: 'Styling Cream',
       description: 'FLEXIBLE HOLD + NATURAL SHINE',
       price: 32,
-      image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&q=80'
+      image: '/showerbottle.png'
     },
     {
       id: 4,
       name: 'Texturizing Spray',
       description: 'BODY BUILDER + SOFT HOLD',
       price: 28,
-      image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=600&q=80'
+      image: '/bottleisclean.png'
     },
     {
       id: 5,
       name: 'Heat Protectant',
       description: 'SHIELD + CONDITION',
       price: 30,
-      image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&q=80'
+      image: '/lotion.png'
     },
     {
       id: 6,
       name: 'Finishing Oil',
       description: 'GLOSS + FRIZZ CONTROL',
       price: 35,
-      image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&q=80'
+      image: '/showerbottle.png'
     },
     {
       id: 7,
       name: 'Lotion',
       description: 'BODY LOTION + SMOOTH SKIN',
       price: 32,
-      image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=600&q=80'
+      image: '/shower.png'
     },
     {
       id: 8,
       name: 'Salt Water Spray',
       description: 'TEXTURE + WAVY STYLE',
       price: 28,
-      image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=600&q=80'
+      image: '/bottleisclean.png'
     }
   ]
 
