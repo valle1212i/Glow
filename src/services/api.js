@@ -71,7 +71,7 @@ const apiRequest = async (endpoint, options = {}) => {
       }
     }
     
-    return { success: true, data }
+    return { success: true, data, status: response.status }
   } catch (error) {
     console.error('API request failed:', error)
     return { 
@@ -270,9 +270,11 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
     )
 
     if (!response.ok) {
-      // If campaign check fails (including 502/503), fallback to regular price
-      // Only log if it's not a server error (5xx) - those are expected when backend is down
-      if (response.status < 500) {
+      // If campaign check fails (404 = endpoint doesn't exist, 502/503 = backend down), fallback to regular price
+      // Only log if it's an unexpected error (not 404, not 5xx)
+      if (response.status !== 404 && response.status >= 500) {
+        // Don't log 404s (endpoint doesn't exist) or 5xx (backend down) - these are expected
+      } else if (response.status < 400 || (response.status >= 400 && response.status < 500 && response.status !== 404)) {
         console.warn('Campaign price check failed, using regular price')
       }
       return { success: true, priceId: regularPriceId, hasCampaign: false }
@@ -313,14 +315,11 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
  * Returns checkout session URL to redirect user to Stripe
  */
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
-  // Get CSRF token
+  // Get CSRF token (but don't fail if unavailable - backend might not require it)
   const csrfToken = await getCSRFToken()
-  if (!csrfToken) {
-    return {
-      success: false,
-      error: 'Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.'
-    }
-  }
+  
+  // Note: We continue even if CSRF token is empty, as the backend might handle it differently
+  // Some endpoints might not require CSRF, or might accept requests without it
 
   // Build line items for Stripe checkout
   const lineItems = cartItems.map(item => ({
@@ -346,8 +345,18 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     return { success: true }
   }
 
-  // Check if the endpoint doesn't exist (404) or other error
-  const errorMessage = result.error || result.data?.error || result.data?.message || 'Kunde inte skapa checkout-session. Försök igen.'
+  // Handle different error cases
+  let errorMessage = 'Kunde inte skapa checkout-session. Försök igen.'
+  
+  if (result.status === 403) {
+    errorMessage = 'Åtkomst nekad. Kontrollera att backend-tjänsten är konfigurerad korrekt.'
+  } else if (result.status === 404) {
+    errorMessage = 'Checkout-endpoint hittades inte. Kontrollera att backend-tjänsten har implementerat Stripe checkout.'
+  } else if (result.status === 502 || result.status === 503) {
+    errorMessage = 'Backend-tjänsten är tillfälligt otillgänglig. Försök igen om en stund.'
+  } else {
+    errorMessage = result.error || result.data?.error || result.data?.message || errorMessage
+  }
   
   return {
     success: false,
