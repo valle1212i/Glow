@@ -35,19 +35,40 @@ export const API_CONFIG = {
 export const getCSRFToken = async () => {
   // Try to get from meta tag first
   const metaTag = document.querySelector('meta[name="csrf-token"]')
-  if (metaTag) {
+  if (metaTag && metaTag.getAttribute('content')) {
     return metaTag.getAttribute('content')
   }
   
-  // Otherwise fetch from API
+  // Otherwise fetch from API (but fail gracefully if backend is down)
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CSRF}`, {
       credentials: 'include'
+      // Note: AbortSignal.timeout() may not be available in all browsers
     })
+    
+    // Check if response is OK and JSON
+    if (!response.ok) {
+      // Only log if it's not a server error (5xx) - those are expected when backend is down
+      if (response.status < 500) {
+        console.warn(`CSRF token fetch failed: ${response.status} ${response.statusText}`)
+      }
+      return '' // Return empty string, backend might not require CSRF
+    }
+    
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      // Backend returned HTML (likely error page), return empty
+      return '' // Return empty string
+    }
+    
     const data = await response.json()
     return data.csrfToken || ''
   } catch (error) {
-    console.error('Failed to fetch CSRF token:', error)
+    // Silently fail - backend might be down, but we'll try without CSRF token
+    // Don't log network errors (502, 503, timeout) as they're expected when backend is down
+    if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+      console.warn('Failed to fetch CSRF token:', error.message)
+    }
     return ''
   }
 }

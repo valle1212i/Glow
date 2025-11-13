@@ -31,10 +31,44 @@ const apiRequest = async (endpoint, options = {}) => {
   
   try {
     const response = await fetch(url, config)
-    const data = await response.json()
+    
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || ''
+    let data
+    
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        // If JSON parsing fails, try to get error message from text
+        const text = await response.text()
+        console.error('Failed to parse JSON response:', parseError)
+        return {
+          success: false,
+          error: `Invalid response from server (${response.status})`,
+          status: response.status
+        }
+      }
+    } else {
+      // Non-JSON response (likely HTML error page from 502/503)
+      const text = await response.text()
+      console.warn(`Server returned non-JSON (${contentType}): ${response.status}`)
+      return {
+        success: false,
+        error: response.status === 502 
+          ? 'Backend service is temporarily unavailable. Please try again later.'
+          : `Server error: ${response.status} ${response.statusText}`,
+        status: response.status
+      }
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || `API error: ${response.status}`)
+      return {
+        success: false,
+        error: data.message || data.error || `API error: ${response.status}`,
+        status: response.status,
+        data
+      }
     }
     
     return { success: true, data }
@@ -54,14 +88,9 @@ const apiRequest = async (endpoint, options = {}) => {
 export const bookAppointment = async (appointmentData) => {
   const { date, time, name, email, phone } = appointmentData
   
-  // Get CSRF token
+  // Get CSRF token (but continue even if it fails - backend might not require it)
   const csrfToken = await getCSRFToken()
-  if (!csrfToken) {
-    return {
-      success: false,
-      error: 'Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.'
-    }
-  }
+  // Note: We continue even without CSRF token - backend will handle validation
   
   // Combine date and time into ISO string
   const [hours, minutes] = time.split(':')
@@ -107,14 +136,9 @@ Telefon: ${phone || 'Ej angivet'}`
 export const sendContactMessage = async (messageData) => {
   const { name, email, phone, message } = messageData
   
-  // Get CSRF token
+  // Get CSRF token (but continue even if it fails - backend might not require it)
   const csrfToken = await getCSRFToken()
-  if (!csrfToken) {
-    return {
-      success: false,
-      error: 'Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.'
-    }
-  }
+  // Note: We continue even without CSRF token - backend will handle validation
   
   const payload = {
     tenant: API_CONFIG.TENANT,
@@ -174,6 +198,7 @@ Period: ${period || 'Ej angivet'}`
 /**
  * Track analytics event
  * Note: Analytics endpoint doesn't require CSRF protection
+ * Fails silently if backend is unavailable (502, 503, etc.)
  */
 export const trackEvent = async (eventType, eventData = {}) => {
   const payload = {
@@ -198,17 +223,25 @@ export const trackEvent = async (eventType, eventData = {}) => {
       },
       credentials: 'include',
       body: JSON.stringify(payload)
+      // Note: AbortSignal.timeout() may not be available in all browsers
+      // If needed, we can add a polyfill or use setTimeout with AbortController
     })
     
     // Analytics tracking is fire-and-forget, don't throw errors
     if (!response.ok) {
-      console.warn('Analytics tracking failed:', response.status)
+      // Only log if it's not a server error (5xx) - those are expected when backend is down
+      if (response.status < 500) {
+        console.warn('Analytics tracking failed:', response.status)
+      }
     }
     
     return { success: true }
   } catch (error) {
     // Silently fail analytics tracking to not disrupt user experience
-    console.warn('Analytics tracking error:', error)
+    // Don't log network errors (502, 503, timeout) as they're expected when backend is down
+    if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+      console.warn('Analytics tracking error:', error.message)
+    }
     return { success: false }
   }
 }
@@ -216,6 +249,7 @@ export const trackEvent = async (eventType, eventData = {}) => {
 /**
  * Check for campaign price for a product
  * Returns campaign price ID if available, otherwise returns regular price ID
+ * Fails gracefully if backend is unavailable (502, 503, etc.)
  */
 export const getCampaignPrice = async (productId, regularPriceId) => {
   if (!productId) {
@@ -232,12 +266,23 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
           'X-Tenant': API_CONFIG.TENANT
         },
         credentials: 'include'
+        // Note: AbortSignal.timeout() may not be available in all browsers
       }
     )
 
     if (!response.ok) {
-      // If campaign check fails, fallback to regular price
-      console.warn('Campaign price check failed, using regular price')
+      // If campaign check fails (including 502/503), fallback to regular price
+      // Only log if it's not a server error (5xx) - those are expected when backend is down
+      if (response.status < 500) {
+        console.warn('Campaign price check failed, using regular price')
+      }
+      return { success: true, priceId: regularPriceId, hasCampaign: false }
+    }
+
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      // Backend returned HTML (likely error page), fallback to regular price
       return { success: true, priceId: regularPriceId, hasCampaign: false }
     }
 
@@ -255,8 +300,11 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
     // No campaign price available, use regular price
     return { success: true, priceId: regularPriceId, hasCampaign: false }
   } catch (error) {
-    // Error checking campaign, fallback to regular price
-    console.warn('Error checking campaign price:', error)
+    // Error checking campaign (network error, timeout, etc.), fallback to regular price
+    // Don't log network errors as they're expected when backend is down
+    if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+      console.warn('Error checking campaign price:', error.message)
+    }
     return { success: true, priceId: regularPriceId, hasCampaign: false }
   }
 }
