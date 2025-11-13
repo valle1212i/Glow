@@ -46,17 +46,30 @@ app.use('/api', async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant': req.headers['x-tenant'] || 'hairdresser'
-      }
+      },
+      // Forward cookies from the original request (important for CSRF token validation)
+      credentials: 'include'
+    }
+    
+    // Forward cookies from the original request
+    if (req.headers.cookie) {
+      options.headers['Cookie'] = req.headers.cookie
+      console.log('Forwarding cookies to backend')
     }
     
     // Forward CSRF token if present (Express normalizes headers to lowercase)
     if (req.headers['x-csrf-token']) {
       options.headers['X-CSRF-Token'] = req.headers['x-csrf-token']
       console.log('Including CSRF token in backend request:', req.headers['x-csrf-token'].substring(0, 20) + '...')
-      console.log('Full headers being sent to backend:', JSON.stringify(options.headers, null, 2))
     } else {
       console.warn('CSRF token missing in request headers!')
     }
+    
+    console.log('Headers being sent to backend:', {
+      'X-Tenant': options.headers['X-Tenant'],
+      'X-CSRF-Token': options.headers['X-CSRF-Token'] ? 'present' : 'missing',
+      'Cookie': options.headers['Cookie'] ? 'present' : 'missing'
+    })
     
     // Add body for POST/PUT requests
     if (req.method === 'POST' || req.method === 'PUT') {
