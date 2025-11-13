@@ -28,7 +28,11 @@ app.use('/api', (req, res, next) => {
 // Proxy API requests to backend
 app.use('/api', async (req, res) => {
   try {
-    const url = `${BACKEND_URL}${req.path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
+    // req.path already has the path without /api (e.g., /stripe/checkout)
+    // We need to add /api prefix when forwarding to backend
+    const backendPath = `/api${req.path}`
+    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''
+    const url = `${BACKEND_URL}${backendPath}${queryString}`
     
     const options = {
       method: req.method,
