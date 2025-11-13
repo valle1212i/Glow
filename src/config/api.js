@@ -22,7 +22,10 @@ export const API_CONFIG = {
     ANALYTICS: '/api/analytics/track',
     
     // Campaign Price Check
-    CAMPAIGN_PRICE: '/api/campaigns/price'
+    CAMPAIGN_PRICE: '/api/campaigns/price',
+    
+    // Stripe Checkout
+    STRIPE_CHECKOUT: '/api/stripe/checkout'
   }
 }
 

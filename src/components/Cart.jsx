@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiX, FiMinus, FiPlus, FiShoppingBag } from 'react-icons/fi'
 import { useCart } from '../context/CartContext'
+import { createCheckoutSession } from '../services/api'
 import './Cart.css'
 
 const Cart = () => {
@@ -11,8 +12,24 @@ const Cart = () => {
     setIsCartOpen,
     removeFromCart,
     updateQuantity,
-    getTotalPrice
+    getTotalPrice,
+    getCheckoutPriceId
   } = useCart()
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) return
+    
+    setIsProcessing(true)
+    try {
+      await createCheckoutSession(cartItems, getCheckoutPriceId)
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Ett fel uppstod vid checkout. Försök igen.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -101,7 +118,15 @@ const Cart = () => {
                       <span>Total:</span>
                       <span>€{getTotalPrice().toFixed(2).replace('.', ',')}</span>
                     </div>
-                    <button className="checkout-button">Checkout</button>
+                    <motion.button 
+                      className="checkout-button"
+                      onClick={handleCheckout}
+                      disabled={isProcessing || cartItems.length === 0}
+                      whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+                      whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+                    >
+                      {isProcessing ? 'Processing...' : 'Checkout'}
+                    </motion.button>
                   </div>
                 </>
               )}

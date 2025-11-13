@@ -262,6 +262,50 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
 }
 
 /**
+ * Create Stripe checkout session
+ * Returns checkout session URL to redirect user to Stripe
+ */
+export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
+  // Get CSRF token
+  const csrfToken = await getCSRFToken()
+  if (!csrfToken) {
+    return {
+      success: false,
+      error: 'Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.'
+    }
+  }
+
+  // Build line items for Stripe checkout
+  const lineItems = cartItems.map(item => ({
+    price: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
+    quantity: item.quantity
+  }))
+
+  const payload = {
+    tenant: API_CONFIG.TENANT,
+    lineItems: lineItems,
+    successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${window.location.origin}/checkout/cancel`
+  }
+
+  const result = await apiRequest(API_CONFIG.ENDPOINTS.STRIPE_CHECKOUT, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+
+  if (result.success && result.data?.url) {
+    // Redirect to Stripe checkout
+    window.location.href = result.data.url
+    return { success: true }
+  }
+
+  return {
+    success: false,
+    error: result.error || 'Kunde inte skapa checkout-session. Försök igen.'
+  }
+}
+
+/**
  * Get or create session ID
  */
 const getSessionId = () => {
