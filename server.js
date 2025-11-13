@@ -80,10 +80,19 @@ app.use('/api', async (req, res) => {
       options.body = JSON.stringify(req.body)
     }
     
+    // Make the request to backend
     const response = await fetch(url, options)
     
-    // Log response status for debugging
+    // Log response status and set-cookie headers for debugging
     console.log(`Backend response: ${response.status} ${response.statusText} for ${req.method} ${url}`)
+    
+    // Check if backend is setting cookies (for session management)
+    const setCookieHeader = response.headers.get('set-cookie')
+    if (setCookieHeader) {
+      console.log('Backend is setting cookies:', setCookieHeader.substring(0, 100) + '...')
+      // Note: We can't forward Set-Cookie headers to the client due to domain mismatch
+      // The backend sets cookies for source-database.onrender.com, but client is on glow-test.onrender.com
+    }
     
     // Check content type before parsing
     const contentType = response.headers.get('content-type') || ''
