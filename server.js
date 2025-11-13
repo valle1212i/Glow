@@ -54,7 +54,10 @@ app.use('/api', async (req, res) => {
     // Forward cookies from the original request
     if (req.headers.cookie) {
       options.headers['Cookie'] = req.headers.cookie
-      console.log('Forwarding cookies to backend')
+      console.log('Forwarding cookies to backend:', req.headers.cookie.substring(0, 50) + '...')
+    } else {
+      console.warn('No cookies in original request - this may cause CSRF validation to fail!')
+      console.log('Available request headers:', Object.keys(req.headers))
     }
     
     // Forward CSRF token if present (Express normalizes headers to lowercase)
@@ -67,8 +70,9 @@ app.use('/api', async (req, res) => {
     
     console.log('Headers being sent to backend:', {
       'X-Tenant': options.headers['X-Tenant'],
-      'X-CSRF-Token': options.headers['X-CSRF-Token'] ? 'present' : 'missing',
-      'Cookie': options.headers['Cookie'] ? 'present' : 'missing'
+      'X-CSRF-Token': options.headers['X-CSRF-Token'] ? (options.headers['X-CSRF-Token'].substring(0, 20) + '...') : 'missing',
+      'Cookie': options.headers['Cookie'] ? (options.headers['Cookie'].substring(0, 50) + '...') : 'missing',
+      'Content-Type': options.headers['Content-Type']
     })
     
     // Add body for POST/PUT requests
