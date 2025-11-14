@@ -20,9 +20,11 @@ const CheckoutSuccess = () => {
 
   const sendPaymentTracking = async (sessionId) => {
     try {
-      // Note: In production, you should fetch session details from your backend
-      // For now, we'll send a basic payment event
-      // The webhook handler will send full payment details automatically
+      // Note: The webhook handler should send full payment details automatically
+      // This is a fallback in case the webhook doesn't fire
+      // The webhook handler is the primary method for sending payment data
+      
+      console.log('📤 Sending fallback payment tracking for session:', sessionId)
       
       await trackEvent('customer_payment', {
         sessionId: sessionId,
@@ -30,9 +32,10 @@ const CheckoutSuccess = () => {
         timestamp: new Date().toISOString()
       })
 
-      console.log('✅ Payment tracking sent to customer portal')
+      console.log('✅ Fallback payment tracking sent to customer portal')
     } catch (error) {
       console.error('❌ Error sending payment tracking:', error)
+      // Don't show error to user - webhook should handle it
     } finally {
       setLoading(false)
     }

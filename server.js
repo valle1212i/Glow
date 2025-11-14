@@ -92,32 +92,54 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     const session = event.data.object
 
     try {
-      // Get full session details
+      console.log('📦 Processing checkout.session.completed:', session.id)
+      
+      // Get full session details with expanded line items
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-        expand: ['line_items', 'payment_intent']
+        expand: ['line_items', 'line_items.data.price.product', 'payment_intent', 'payment_intent.charges']
       })
 
-      // Send payment data to customer portal
+      // Get line items data
+      const lineItems = fullSession.line_items?.data || []
+      const firstLineItem = lineItems[0]
+      
+      // Get payment intent details
+      const paymentIntent = fullSession.payment_intent
+      let cardBrand = ''
+      let cardLast4 = ''
+      
+      if (paymentIntent && typeof paymentIntent === 'object' && 'charges' in paymentIntent) {
+        const charges = paymentIntent.charges?.data || []
+        if (charges.length > 0) {
+          const charge = charges[0]
+          cardBrand = charge.payment_method_details?.card?.brand || ''
+          cardLast4 = charge.payment_method_details?.card?.last4 || ''
+        }
+      }
+
+      // Build payment data with exact structure expected by customer portal
       const paymentData = {
         event: 'customer_payment',
-        tenant: 'Glow Hairdressing',
+        tenant: 'Glow Hairdressing', // ✅ Exact tenant name required
         data: {
           sessionId: fullSession.id,
-          amount: fullSession.amount_total, // Amount in cents
+          amount: fullSession.amount_total || 0, // Amount in cents
           currency: fullSession.currency || 'eur',
           customerEmail: fullSession.customer_details?.email || fullSession.customer_email || '',
           customerName: fullSession.customer_details?.name || '',
           status: fullSession.payment_status === 'paid' ? 'completed' : 'open',
           timestamp: new Date(fullSession.created * 1000).toISOString(),
-          productId: fullSession.metadata?.productId || '',
-          priceId: fullSession.line_items?.data?.[0]?.price?.id || '',
-          productName: fullSession.line_items?.data?.[0]?.description || '',
-          quantity: fullSession.line_items?.data?.[0]?.quantity || 1,
+          productId: fullSession.metadata?.productId || firstLineItem?.price?.product || '',
+          priceId: firstLineItem?.price?.id || '',
+          productName: firstLineItem?.description || firstLineItem?.price?.nickname || '',
+          quantity: firstLineItem?.quantity || 1,
           paymentMethod: 'card',
-          cardBrand: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.brand || '',
-          cardLast4: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.last4 || ''
+          cardBrand: cardBrand,
+          cardLast4: cardLast4
         }
       }
+
+      console.log('📤 Sending payment to customer portal:', JSON.stringify(paymentData, null, 2))
 
       const portalResponse = await fetch(`${BACKEND_URL}/api/analytics/track`, {
         method: 'POST',
@@ -128,13 +150,20 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         body: JSON.stringify(paymentData)
       })
 
-      if (portalResponse.ok) {
-        console.log('✅ Payment data sent to customer portal')
+      const responseData = await portalResponse.json()
+      
+      if (portalResponse.ok && responseData.success) {
+        console.log('✅ Payment data sent successfully to customer portal:', responseData)
       } else {
-        console.error('❌ Failed to send payment data to customer portal:', portalResponse.status)
+        console.error('❌ Failed to send payment data to customer portal:', {
+          status: portalResponse.status,
+          statusText: portalResponse.statusText,
+          response: responseData
+        })
       }
     } catch (error) {
       console.error('❌ Error processing payment webhook:', error)
+      console.error('Error stack:', error.stack)
     }
   }
 
