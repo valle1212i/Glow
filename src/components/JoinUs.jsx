@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { subscribeToPackage } from '../services/api'
 import './JoinUs.css'
 
 const JoinUs = () => {
@@ -11,6 +10,7 @@ const JoinUs = () => {
     phone: ''
   })
   const [submitted, setSubmitted] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const packages = [
     {
@@ -18,6 +18,8 @@ const JoinUs = () => {
       name: 'Basic',
       price: 89,
       period: 'per 3 months',
+      productId: 'prod_TPyYZ1pnHSmRY3',
+      priceId: 'price_1ST8bPP6vvUUervCBhhToXcu',
       features: [
         'Haircut once per 3rd month',
         'Professional styling',
@@ -30,6 +32,8 @@ const JoinUs = () => {
       name: 'Premium',
       price: 179,
       period: 'per 3 months',
+      productId: 'prod_TPyZQtv1WalSRt',
+      priceId: 'price_1ST8cJP6vvUUervCnsiuAoRc',
       features: [
         'Consultation included',
         '2 haircuts per 3rd month',
@@ -44,6 +48,8 @@ const JoinUs = () => {
       name: 'Elite',
       price: 299,
       period: 'per month',
+      productId: 'prod_TPya3oshJcOah6',
+      priceId: 'price_1ST8cyP6vvUUervCFw4WkB1D',
       features: [
         'Haircut once every month',
         'Consultation included',
@@ -75,30 +81,40 @@ const JoinUs = () => {
           return
         }
         
-        const result = await subscribeToPackage({
-          packageId: selectedPkg.id,
-          packageName: selectedPkg.name,
-          price: selectedPkg.price,
-          period: selectedPkg.period,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone
-        })
+        setIsProcessing(true)
         
-        if (result.success) {
-          setSubmitted(true)
-          // Reset form after 3 seconds
-          setTimeout(() => {
-            setSubmitted(false)
-            setSelectedPackage(null)
-            setFormData({ name: '', email: '', phone: '' })
-          }, 3000)
+        // Create Stripe checkout session for subscription
+        const payload = {
+          lineItems: [{
+            price: selectedPkg.priceId,
+            quantity: 1
+          }],
+          successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${window.location.origin}/join`,
+          customerEmail: formData.email
+        }
+
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await response.json()
+
+        if (response.ok && data.url) {
+          // Redirect to Stripe checkout
+          window.location.href = data.url
         } else {
-          alert(result.error || 'Failed to process subscription. Please try again.')
+          alert(data.error || 'Kunde inte skapa checkout-session. Försök igen.')
+          setIsProcessing(false)
         }
       } catch (error) {
         console.error('Subscription error:', error)
-        alert('An error occurred. Please try again.')
+        alert('Ett fel uppstod. Försök igen.')
+        setIsProcessing(false)
       }
     }
   }
@@ -224,11 +240,11 @@ const JoinUs = () => {
               <motion.button
                 type="submit"
                 className="submit-subscription-btn"
-                disabled={!formData.name || !formData.email || !formData.phone}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={!formData.name || !formData.email || !formData.phone || isProcessing}
+                whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+                whileTap={{ scale: isProcessing ? 1 : 0.98 }}
               >
-                {submitted ? 'Subscription Confirmed!' : 'Subscribe Now'}
+                {isProcessing ? 'Processing...' : 'Subscribe Now'}
               </motion.button>
             </form>
           </motion.div>
