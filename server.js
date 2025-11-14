@@ -137,13 +137,30 @@ app.use('/api', async (req, res) => {
       // Combine all cookies into a single Cookie header string
       if (cookies.length > 0) {
         // Merge with existing cookies if any
+        // Use a Map to handle duplicate cookie names (keep latest value)
+        const cookieMap = new Map()
+        
+        // First, add existing cookies
         if (backendSessionCookies) {
           const existingCookies = backendSessionCookies.split('; ').map(c => c.trim())
-          const allCookies = [...new Set([...existingCookies, ...cookies])] // Remove duplicates
-          backendSessionCookies = allCookies.join('; ')
-        } else {
-          backendSessionCookies = cookies.join('; ')
+          for (const cookie of existingCookies) {
+            const [name] = cookie.split('=')
+            if (name) {
+              cookieMap.set(name, cookie)
+            }
+          }
         }
+        
+        // Then, add/update with new cookies (newer values override older ones)
+        for (const cookie of cookies) {
+          const [name] = cookie.split('=')
+          if (name) {
+            cookieMap.set(name, cookie) // This will override if name already exists
+          }
+        }
+        
+        // Convert map back to cookie string
+        backendSessionCookies = Array.from(cookieMap.values()).join('; ')
         console.log('Stored backend session cookies for future requests:', backendSessionCookies.substring(0, 150) + '...')
       }
       
