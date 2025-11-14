@@ -8,7 +8,8 @@ export const API_CONFIG = {
     : (import.meta.env.VITE_API_URL || 'https://source-database.onrender.com'),
   
   // Tenant identifier for Glow Hairdressing (must match exactly in customer portal)
-  TENANT: 'Glow Hairdressing',
+  // ✅ Must be exactly 'glowhairdressing' (lowercase, no spaces) to match database
+  TENANT: 'glowhairdressing',
   
   // API endpoints
   // In production, these are relative to BASE_URL (/api), so they don't include /api prefix

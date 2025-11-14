@@ -134,7 +134,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       // ✅ Data object is required with all fields
       const paymentData = {
         event: 'customer_payment', // ✅ MUST be exactly 'customer_payment'
-        tenant: 'Glow Hairdressing', // ✅ Exact tenant name required
+        tenant: 'glowhairdressing', // ✅ Must match database tenant exactly (lowercase, no spaces)
         data: {
           // ✅ REQUIRED FIELDS
           sessionId: fullSession.id,
@@ -178,7 +178,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Tenant': 'Glow Hairdressing'
+          'X-Tenant': 'glowhairdressing' // ✅ Must match database tenant exactly
         },
         body: JSON.stringify(paymentData)
       })
@@ -239,10 +239,10 @@ app.use('/api', async (req, res) => {
     
     const options = {
       method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Tenant': req.headers['x-tenant'] || 'Glow Hairdressing'
-      },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Tenant': req.headers['x-tenant'] || 'glowhairdressing' // ✅ Default to database tenant
+          },
       // Forward cookies from the original request (important for CSRF token validation)
       credentials: 'include'
     }
