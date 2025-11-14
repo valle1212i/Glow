@@ -9,7 +9,6 @@ const JoinUs = () => {
     email: '',
     phone: ''
   })
-  const [submitted, setSubmitted] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   const packages = [
