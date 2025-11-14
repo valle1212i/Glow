@@ -105,7 +105,7 @@ const Cart = () => {
                                 Sale
                               </span>
                             )}
-                            <p>€{(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                            <p>{(item.price * item.quantity).toLocaleString('sv-SE')} kr</p>
                           </div>
                           <button
                             className="remove-item"
@@ -120,7 +120,7 @@ const Cart = () => {
                   <div className="cart-footer">
                     <div className="cart-total">
                       <span>Total:</span>
-                      <span>€{getTotalPrice().toFixed(2).replace('.', ',')}</span>
+                      <span>{getTotalPrice().toLocaleString('sv-SE')} kr</span>
                     </div>
                     <motion.button 
                       className="checkout-button"

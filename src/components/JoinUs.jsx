@@ -15,8 +15,8 @@ const JoinUs = () => {
     {
       id: 'basic',
       name: 'Basic',
-      price: 89,
-      period: 'per 3 months',
+      price: 899, // SEK per month
+      period: 'per month',
       productId: 'prod_TPyYZ1pnHSmRY3',
       priceId: 'price_1ST8bPP6vvUUervCBhhToXcu',
       features: [
@@ -29,8 +29,8 @@ const JoinUs = () => {
     {
       id: 'middle',
       name: 'Premium',
-      price: 179,
-      period: 'per 3 months',
+      price: 1799, // SEK per month
+      period: 'per month',
       productId: 'prod_TPyZQtv1WalSRt',
       priceId: 'price_1ST8cJP6vvUUervCnsiuAoRc',
       features: [
@@ -45,7 +45,7 @@ const JoinUs = () => {
     {
       id: 'premium',
       name: 'Elite',
-      price: 299,
+      price: 2999, // SEK per month
       period: 'per month',
       productId: 'prod_TPya3oshJcOah6',
       priceId: 'price_1ST8cyP6vvUUervCFw4WkB1D',
@@ -148,7 +148,7 @@ const JoinUs = () => {
               <div className="package-header">
                 <h2 className="package-name">{pkg.name}</h2>
                 <div className="package-price">
-                  <span className="price-amount">€{pkg.price}</span>
+                  <span className="price-amount">{pkg.price.toLocaleString('sv-SE')} kr</span>
                   <span className="price-period">/{pkg.period}</span>
                 </div>
               </div>
@@ -232,7 +232,7 @@ const JoinUs = () => {
                 <div className="summary-row">
                   <span>Price:</span>
                   <span className="summary-price">
-                    €{packages.find(p => p.id === selectedPackage)?.price}/{packages.find(p => p.id === selectedPackage)?.period}
+                    {packages.find(p => p.id === selectedPackage)?.price.toLocaleString('sv-SE')} kr/{packages.find(p => p.id === selectedPackage)?.period}
                   </span>
                 </div>
               </div>

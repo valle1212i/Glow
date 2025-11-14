@@ -11,7 +11,7 @@ const allProducts = [
     id: 1,
     name: 'Volume Shampoo',
     description: 'EXTRA BODY + DEEP CLEANSE',
-    price: 28,
+    price: 349, // SEK
     image: '/glowvolumeschamppoo.png',
     productId: 'prod_TPyEGCJUN8hjjP',
     priceId: 'price_1ST8INP6vvUUervCyRnKqKzU',
@@ -21,7 +21,7 @@ const allProducts = [
     id: 2,
     name: 'Hydrating Conditioner',
     description: 'MOISTURE + SMOOTH FINISH',
-    price: 28,
+    price: 479, // SEK
     image: '/twobottles.png',
     productId: 'prod_TPyF74HUAMTa5M',
     priceId: 'price_1ST8JQP6vvUUervC7t34RVoE',
@@ -31,7 +31,7 @@ const allProducts = [
     id: 3,
     name: 'Styling Cream',
     description: 'FLEXIBLE HOLD + NATURAL SHINE',
-    price: 32,
+    price: 199, // SEK
     image: '/showerbottle.png',
     productId: 'prod_TPyG479iBgxuPf',
     priceId: 'price_1ST8KJP6vvUUervCuPav8iwH',
@@ -41,7 +41,7 @@ const allProducts = [
     id: 4,
     name: 'Texturizing Spray',
     description: 'BODY BUILDER + SOFT HOLD',
-    price: 28,
+    price: 249, // SEK
     image: '/bottleisclean.png',
     productId: 'prod_TPyIf38nsbuiKs',
     priceId: 'price_1ST8M9P6vvUUervC1eUgI0Hp',
@@ -51,7 +51,7 @@ const allProducts = [
     id: 5,
     name: 'Heat Protectant',
     description: 'SHIELD + CONDITION',
-    price: 30,
+    price: 289, // SEK
     image: '/lotion.png',
     productId: 'prod_TPyJN5BCqOrXZC',
     priceId: 'price_1ST8MpP6vvUUervCN1dU34rM',
@@ -61,7 +61,7 @@ const allProducts = [
     id: 6,
     name: 'Finishing Oil',
     description: 'GLOSS + FRIZZ CONTROL',
-    price: 35,
+    price: 499, // SEK
     image: '/showerbottle.png',
     productId: 'prod_TPyK9y02nYbvrk',
     priceId: 'price_1ST8NcP6vvUUervC8ivVHW9p',
@@ -71,7 +71,7 @@ const allProducts = [
     id: 7,
     name: 'Lotion',
     description: 'BODY LOTION + SMOOTH SKIN',
-    price: 32,
+    price: 279, // SEK
     image: '/shower.png',
     productId: 'prod_TPyLq0IPNEJdOH',
     priceId: 'price_1ST8OeP6vvUUervCm1YNFPLS',
@@ -81,7 +81,7 @@ const allProducts = [
     id: 8,
     name: 'Salt Water Spray',
     description: 'TEXTURE + WAVY STYLE',
-    price: 28,
+    price: 329, // SEK
     image: '/seasalt.png',
     productId: 'prod_TPyMI03ik6NFBX',
     priceId: 'price_1ST8PNP6vvUUervCH0SDRr6k',
@@ -152,7 +152,7 @@ const ProductDetail = () => {
             <p className="product-subtitle">{product.description}</p>
             
             <div className="product-price-section">
-              <span className="product-price">€{product.price.toFixed(2).replace('.', ',')}</span>
+              <span className="product-price">{product.price.toLocaleString('sv-SE')} kr</span>
             </div>
 
             <div className="product-description">
@@ -187,7 +187,7 @@ const ProductDetail = () => {
                 <span>📦</span>
                 <div>
                   <strong>Free shipping</strong>
-                  <p>On orders over €100</p>
+                  <p>On orders over 1 000 kr</p>
                 </div>
               </div>
               <div className="feature-item">
