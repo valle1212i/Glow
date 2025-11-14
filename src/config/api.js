@@ -24,10 +24,10 @@ export const API_CONFIG = {
     ANALYTICS: import.meta.env.PROD ? '/analytics/track' : '/api/analytics/track',
     
     // Campaign Price Check
-    CAMPAIGN_PRICE: import.meta.env.PROD ? '/campaigns/price' : '/api/campaigns/price',
+    CAMPAIGN_PRICE: import.meta.env.PROD ? '/campaigns/price' : '/api/campaigns/price'
     
-    // Stripe Checkout
-    STRIPE_CHECKOUT: import.meta.env.PROD ? '/stripe/checkout' : '/api/stripe/checkout'
+    // Note: Stripe checkout is handled directly by Express server at /api/create-checkout-session
+    // No endpoint config needed as it's called directly
   }
 }
 
