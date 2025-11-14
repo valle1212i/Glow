@@ -158,14 +158,20 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         }
       }
 
-      console.log('📤 Sending payment to customer portal:', JSON.stringify(paymentData, null, 2))
-      console.log('🔍 Payment details:', {
-        event: paymentData.event,
-        tenant: paymentData.tenant,
-        sessionId: paymentData.data.sessionId,
-        amount: paymentData.data.amount,
-        currency: paymentData.data.currency,
-        customerEmail: paymentData.data.customerEmail
+      // ✅ ADD DETAILED LOGGING FOR DEBUGGING
+      console.log('📤 Processing payment for session:', fullSession.id)
+      console.log('📤 Amount:', fullSession.amount_total, 'cents')
+      console.log('📤 Customer:', fullSession.customer_details?.email || fullSession.customer_email)
+      console.log('📤 Sending payment payload:', JSON.stringify(paymentData, null, 2))
+      console.log('📤 Event type:', paymentData.event)
+      console.log('📤 Has data object:', !!paymentData.data)
+      console.log('📤 Data keys:', paymentData.data ? Object.keys(paymentData.data) : 'NO DATA')
+      console.log('📤 Required fields check:', {
+        hasSessionId: !!paymentData.data.sessionId,
+        hasAmount: !!paymentData.data.amount,
+        hasCustomerEmail: !!paymentData.data.customerEmail,
+        hasStatus: !!paymentData.data.status,
+        hasTimestamp: !!paymentData.data.timestamp
       })
 
       const portalResponse = await fetch(`${BACKEND_URL}/api/analytics/track`, {
@@ -180,15 +186,18 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       const responseData = await portalResponse.json()
       
       if (portalResponse.ok && responseData.success) {
-        console.log('✅ Payment data sent successfully to customer portal:', responseData)
+        console.log('✅ Payment sent to customer portal:', responseData)
         console.log('💳 Payment should appear in Betalningar section now')
+        console.log('✅ Portal response success:', responseData.success)
       } else {
-        console.error('❌ Failed to send payment data to customer portal:', {
+        console.error('❌ Payment not saved:', {
           status: portalResponse.status,
           statusText: portalResponse.statusText,
           response: responseData
         })
-        console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2))
+        console.error('❌ Payment payload that failed:', JSON.stringify(paymentData, null, 2))
+        console.error('❌ Check if event type is exactly "customer_payment"')
+        console.error('❌ Check if data object has all required fields')
       }
     } catch (error) {
       console.error('❌ Error processing payment webhook:', error)
