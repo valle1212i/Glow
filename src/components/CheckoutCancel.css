@@ -1,0 +1,106 @@
+.checkout-cancel-page {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+  background: var(--bg-light);
+}
+
+.cancel-content {
+  max-width: 600px;
+  text-align: center;
+  background: var(--primary-white);
+  padding: 60px 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.cancel-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 30px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-white);
+}
+
+.cancel-title {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--primary-black);
+}
+
+.cancel-message {
+  font-size: 1.1rem;
+  color: var(--text-gray);
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.cancel-actions {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.continue-shopping-btn,
+.back-home-btn {
+  padding: 14px 32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.continue-shopping-btn {
+  background: var(--primary-black);
+  color: var(--primary-white);
+}
+
+.continue-shopping-btn:hover {
+  background: var(--text-gray);
+}
+
+.back-home-btn {
+  background: transparent;
+  color: var(--primary-black);
+  border: 2px solid var(--primary-black);
+}
+
+.back-home-btn:hover {
+  background: var(--primary-black);
+  color: var(--primary-white);
+}
+
+@media (max-width: 768px) {
+  .checkout-cancel-page {
+    padding: 60px 20px;
+  }
+
+  .cancel-content {
+    padding: 40px 30px;
+  }
+
+  .cancel-title {
+    font-size: 2rem;
+  }
+
+  .cancel-actions {
+    flex-direction: column;
+  }
+
+  .continue-shopping-btn,
+  .back-home-btn {
+    width: 100%;
+  }
+}
+

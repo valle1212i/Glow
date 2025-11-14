@@ -10,6 +10,8 @@ import About from './components/About'
 import BookNow from './components/BookNow'
 import JoinUs from './components/JoinUs'
 import Contact from './components/Contact'
+import CheckoutSuccess from './components/CheckoutSuccess'
+import CheckoutCancel from './components/CheckoutCancel'
 import Footer from './components/Footer'
 import Cart from './components/Cart'
 import { CartProvider } from './context/CartContext'
@@ -54,6 +56,8 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/join" element={<JoinUs />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/checkout/cancel" element={<CheckoutCancel />} />
           </Routes>
           <Footer />
         </div>

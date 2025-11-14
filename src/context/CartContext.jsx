@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { getCampaignPrice } from '../services/api'
+import React, { createContext, useContext, useState } from 'react'
+// Campaign price checking disabled - import removed for now
+// import { getCampaignPrice } from '../services/api'
 
 const CartContext = createContext()
 
@@ -15,7 +16,9 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([])
   const [isCartOpen, setIsCartOpen] = useState(false)
 
-  // Check for campaign prices when cart items change (only for items not yet checked)
+  // Campaign price checking disabled - endpoint not available yet
+  // TODO: Re-enable when /api/campaigns/price endpoint is implemented
+  /*
   useEffect(() => {
     const checkCampaignPrices = async () => {
       const itemsToCheck = cartItems.filter(item => item.productId && !item.campaignPriceChecked)
@@ -48,20 +51,16 @@ export const CartProvider = ({ children }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartItems.length]) // Only run when cart items count changes
+  */
 
   const addToCart = async (product) => {
-    // Check for campaign price when adding to cart
-    let finalProduct = { ...product, quantity: 1, campaignPriceChecked: false }
-    
-    if (product.productId) {
-      const campaignData = await getCampaignPrice(product.productId, product.priceId)
-      finalProduct = {
-        ...finalProduct,
-        campaignPriceId: campaignData.priceId,
-        hasCampaign: campaignData.hasCampaign,
-        campaignName: campaignData.campaignName,
-        campaignPriceChecked: true
-      }
+    // Campaign price checking disabled - use regular price
+    const finalProduct = { 
+      ...product, 
+      quantity: 1, 
+      campaignPriceChecked: true, // Mark as checked to skip campaign lookup
+      hasCampaign: false,
+      campaignPriceId: null
     }
 
     setCartItems(prev => {

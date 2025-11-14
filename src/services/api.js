@@ -316,66 +316,53 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
 
 /**
  * Create Stripe checkout session
+ * Creates checkout session directly with Stripe (not through customer portal)
  * Returns checkout session URL to redirect user to Stripe
  */
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
-  // Get CSRF token (but don't fail if unavailable - backend might not require it)
-  const csrfToken = await getCSRFToken()
-  
-  // Note: We continue even if CSRF token is empty, as the backend might handle it differently
-  // Some endpoints might not require CSRF, or might accept requests without it
-
   // Build line items for Stripe checkout
+  // Use regular price IDs (campaign price lookup disabled for now)
   const lineItems = cartItems.map(item => ({
-    price: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
+    price: getCheckoutPriceId(item), // Use regular price ID
     quantity: item.quantity
   }))
 
   const payload = {
-    tenant: API_CONFIG.TENANT,
     lineItems: lineItems,
     successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${window.location.origin}/checkout/cancel`
   }
 
-  const result = await apiRequest(API_CONFIG.ENDPOINTS.STRIPE_CHECKOUT, {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  })
+  try {
+    // Call our own backend route (not customer portal)
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
 
-  if (result.success && result.data?.url) {
-    // Redirect to Stripe checkout
-    window.location.href = result.data.url
-    return { success: true }
-  }
+    const data = await response.json()
 
-  // Handle different error cases with user-friendly messages
-  let errorMessage = 'Kunde inte skapa checkout-session. Försök igen.'
-  
-  if (result.status === 403) {
-    errorMessage = 'Åtkomst nekad (403). Backend-endpointen kräver autentisering eller har inte implementerats ännu. Kontakta support för att aktivera Stripe checkout.'
-  } else if (result.status === 404) {
-    errorMessage = 'Checkout-endpoint hittades inte (404). Backend-tjänsten har inte implementerat Stripe checkout ännu. Kontakta support.'
-  } else if (result.status === 502 || result.status === 503) {
-    errorMessage = 'Backend-tjänsten är tillfälligt otillgänglig. Försök igen om en stund.'
-  } else if (result.message) {
-    // Use the message from backend if available
-    errorMessage = result.message
-  } else {
-    errorMessage = result.error || result.data?.error || result.data?.message || errorMessage
-  }
-  
-  console.error('Checkout failed:', {
-    status: result.status,
-    error: result.error,
-    message: result.message,
-    data: result.data
-  })
-  
-  return {
-    success: false,
-    error: errorMessage,
-    status: result.status
+    if (response.ok && data.url) {
+      // Redirect to Stripe checkout
+      window.location.href = data.url
+      return { success: true }
+    }
+
+    return {
+      success: false,
+      error: data.error || 'Kunde inte skapa checkout-session. Försök igen.',
+      status: response.status
+    }
+  } catch (error) {
+    console.error('Checkout failed:', error)
+    return {
+      success: false,
+      error: 'Ett fel uppstod vid checkout. Försök igen.',
+      status: 500
+    }
   }
 }
 
