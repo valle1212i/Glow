@@ -30,10 +30,20 @@ app.use((req, res, next) => {
 // Create Stripe checkout session endpoint (must be BEFORE proxy route)
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { lineItems, successUrl, cancelUrl, customerEmail } = req.body
+    const { lineItems, successUrl, cancelUrl, customerEmail, productId } = req.body
 
     if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
       return res.status(400).json({ error: 'Line items are required' })
+    }
+
+    // Build metadata
+    const metadata = {
+      tenant: 'Glow Hairdressing'
+    }
+    
+    // Add productId to metadata if provided (for subscriptions or products)
+    if (productId) {
+      metadata.productId = productId
     }
 
     // Create Stripe checkout session
@@ -47,9 +57,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       success_url: successUrl || `${req.protocol}://${req.get('host')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/checkout/cancel`,
       customer_email: customerEmail,
-      metadata: {
-        tenant: 'Glow Hairdressing'
-      }
+      metadata: metadata
     })
 
     res.json({ sessionId: session.id, url: session.url })

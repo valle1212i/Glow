@@ -327,10 +327,14 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     quantity: item.quantity
   }))
 
+  // Get productId from first cart item (if available)
+  const productId = cartItems.length > 0 ? cartItems[0].productId : null
+
   const payload = {
     lineItems: lineItems,
     successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${window.location.origin}/checkout/cancel`
+    cancelUrl: `${window.location.origin}/checkout/cancel`,
+    productId: productId // Include productId for tracking (for single product purchases)
   }
 
   try {

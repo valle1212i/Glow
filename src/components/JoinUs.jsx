@@ -90,7 +90,8 @@ const JoinUs = () => {
           }],
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/join`,
-          customerEmail: formData.email
+          customerEmail: formData.email,
+          productId: selectedPkg.productId // Include productId for tracking
         }
 
         const response = await fetch('/api/create-checkout-session', {
