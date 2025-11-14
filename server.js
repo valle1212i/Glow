@@ -30,10 +30,27 @@ app.use((req, res, next) => {
 // Create Stripe checkout session endpoint (must be BEFORE proxy route)
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { lineItems, successUrl, cancelUrl, customerEmail, productId } = req.body
+    const { lineItems, successUrl, cancelUrl, customerEmail, productId, mode } = req.body
 
     if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
       return res.status(400).json({ error: 'Line items are required' })
+    }
+
+    // Determine checkout mode: 'subscription' for recurring prices, 'payment' for one-time
+    // If mode is explicitly provided, use it; otherwise check the price type
+    let checkoutMode = mode || 'payment'
+    
+    // If mode not provided, check if price is recurring by retrieving it from Stripe
+    if (!mode && lineItems.length > 0) {
+      try {
+        const price = await stripe.prices.retrieve(lineItems[0].price)
+        if (price.type === 'recurring') {
+          checkoutMode = 'subscription'
+        }
+      } catch (priceError) {
+        console.warn('Could not retrieve price to determine type, defaulting to payment mode:', priceError.message)
+        // Default to payment mode if we can't check
+      }
     }
 
     // Build metadata
@@ -53,13 +70,14 @@ app.post('/api/create-checkout-session', async (req, res) => {
         price: item.price,
         quantity: item.quantity
       })),
-      mode: 'payment',
+      mode: checkoutMode, // ✅ Use 'subscription' for recurring prices, 'payment' for one-time
       success_url: successUrl || `${req.protocol}://${req.get('host')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/checkout/cancel`,
       customer_email: customerEmail,
       metadata: metadata
     })
 
+    console.log(`✅ Created ${checkoutMode} checkout session:`, session.id)
     res.json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Error creating checkout session:', error)
