@@ -129,28 +129,44 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       }
 
       // Build payment data with exact structure expected by customer portal
+      // ✅ Event type MUST be exactly 'customer_payment' (case-sensitive)
+      // ✅ Amount MUST be in cents (Stripe's amount_total is already in cents)
+      // ✅ Data object is required with all fields
       const paymentData = {
-        event: 'customer_payment',
+        event: 'customer_payment', // ✅ MUST be exactly 'customer_payment'
         tenant: 'Glow Hairdressing', // ✅ Exact tenant name required
         data: {
+          // ✅ REQUIRED FIELDS
           sessionId: fullSession.id,
-          amount: fullSession.amount_total || 0, // Amount in cents
-          currency: fullSession.currency || 'eur',
+          amount: fullSession.amount_total || 0, // ✅ Amount in cents (Stripe provides this)
+          currency: fullSession.currency || 'SEK', // ✅ Default to SEK
           customerEmail: fullSession.customer_details?.email || fullSession.customer_email || '',
           customerName: fullSession.customer_details?.name || '',
           status: fullSession.payment_status === 'paid' ? 'completed' : 'open',
           timestamp: new Date(fullSession.created * 1000).toISOString(),
-          productId: fullSession.metadata?.productId || firstLineItem?.price?.product || '',
+          
+          // ✅ RECOMMENDED FIELDS
+          productId: fullSession.metadata?.productId || '', // ✅ Get from metadata first
           priceId: firstLineItem?.price?.id || '',
           productName: firstLineItem?.description || firstLineItem?.price?.nickname || '',
           quantity: firstLineItem?.quantity || 1,
           paymentMethod: 'card',
+          
+          // ✅ OPTIONAL FIELDS (if available)
           cardBrand: cardBrand,
           cardLast4: cardLast4
         }
       }
 
       console.log('📤 Sending payment to customer portal:', JSON.stringify(paymentData, null, 2))
+      console.log('🔍 Payment details:', {
+        event: paymentData.event,
+        tenant: paymentData.tenant,
+        sessionId: paymentData.data.sessionId,
+        amount: paymentData.data.amount,
+        currency: paymentData.data.currency,
+        customerEmail: paymentData.data.customerEmail
+      })
 
       const portalResponse = await fetch(`${BACKEND_URL}/api/analytics/track`, {
         method: 'POST',
@@ -165,12 +181,14 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       
       if (portalResponse.ok && responseData.success) {
         console.log('✅ Payment data sent successfully to customer portal:', responseData)
+        console.log('💳 Payment should appear in Betalningar section now')
       } else {
         console.error('❌ Failed to send payment data to customer portal:', {
           status: portalResponse.status,
           statusText: portalResponse.statusText,
           response: responseData
         })
+        console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2))
       }
     } catch (error) {
       console.error('❌ Error processing payment webhook:', error)
