@@ -38,7 +38,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     // Build metadata
     const metadata = {
-      tenant: 'Glow Hairdressing'
+      tenant: 'glowhairdressing' // ✅ Must match database tenant exactly
     }
     
     // Add productId to metadata if provided (for subscriptions or products)
