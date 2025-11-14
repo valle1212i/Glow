@@ -27,6 +27,112 @@ app.use((req, res, next) => {
   express.json()(req, res, next)
 })
 
+// Create Stripe checkout session endpoint (must be BEFORE proxy route)
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { lineItems, successUrl, cancelUrl, customerEmail } = req.body
+
+    if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+      return res.status(400).json({ error: 'Line items are required' })
+    }
+
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems.map(item => ({
+        price: item.price,
+        quantity: item.quantity
+      })),
+      mode: 'payment',
+      success_url: successUrl || `${req.protocol}://${req.get('host')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/checkout/cancel`,
+      customer_email: customerEmail,
+      metadata: {
+        tenant: 'Glow Hairdressing'
+      }
+    })
+
+    res.json({ sessionId: session.id, url: session.url })
+  } catch (error) {
+    console.error('Error creating checkout session:', error)
+    res.status(500).json({ error: error.message || 'Failed to create checkout session' })
+  }
+})
+
+// Stripe webhook handler for payment events (must be BEFORE proxy route)
+// Note: This route must use express.raw() to get the raw body for signature verification
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature']
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+  if (!webhookSecret) {
+    console.warn('STRIPE_WEBHOOK_SECRET not set, skipping webhook verification')
+    return res.status(400).json({ error: 'Webhook secret not configured' })
+  }
+
+  let event
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret)
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message)
+    return res.status(400).send(`Webhook Error: ${err.message}`)
+  }
+
+  // Handle checkout.session.completed
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+
+    try {
+      // Get full session details
+      const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+        expand: ['line_items', 'payment_intent']
+      })
+
+      // Send payment data to customer portal
+      const paymentData = {
+        event: 'customer_payment',
+        tenant: 'Glow Hairdressing',
+        data: {
+          sessionId: fullSession.id,
+          amount: fullSession.amount_total, // Amount in cents
+          currency: fullSession.currency || 'eur',
+          customerEmail: fullSession.customer_details?.email || fullSession.customer_email || '',
+          customerName: fullSession.customer_details?.name || '',
+          status: fullSession.payment_status === 'paid' ? 'completed' : 'open',
+          timestamp: new Date(fullSession.created * 1000).toISOString(),
+          productId: fullSession.metadata?.productId || '',
+          priceId: fullSession.line_items?.data?.[0]?.price?.id || '',
+          productName: fullSession.line_items?.data?.[0]?.description || '',
+          quantity: fullSession.line_items?.data?.[0]?.quantity || 1,
+          paymentMethod: 'card',
+          cardBrand: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.brand || '',
+          cardLast4: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.last4 || ''
+        }
+      }
+
+      const portalResponse = await fetch(`${BACKEND_URL}/api/analytics/track`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant': 'Glow Hairdressing'
+        },
+        body: JSON.stringify(paymentData)
+      })
+
+      if (portalResponse.ok) {
+        console.log('✅ Payment data sent to customer portal')
+      } else {
+        console.error('❌ Failed to send payment data to customer portal:', portalResponse.status)
+      }
+    } catch (error) {
+      console.error('❌ Error processing payment webhook:', error)
+    }
+  }
+
+  res.json({ received: true })
+})
+
 // CORS headers for API proxy
 app.use('/api', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
@@ -40,7 +146,7 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
-// Proxy API requests to backend
+// Proxy API requests to backend (catches all /api routes not handled above)
 app.use('/api', async (req, res) => {
   try {
     // req.path already has the path without /api (e.g., /stripe/checkout)
@@ -60,7 +166,7 @@ app.use('/api', async (req, res) => {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'X-Tenant': req.headers['x-tenant'] || 'hairdresser'
+        'X-Tenant': req.headers['x-tenant'] || 'Glow Hairdressing'
       },
       // Forward cookies from the original request (important for CSRF token validation)
       credentials: 'include'
@@ -225,112 +331,6 @@ app.use('/api', async (req, res) => {
       message: error.message
     })
   }
-})
-
-// Create Stripe checkout session endpoint (must be before proxy route)
-app.post('/api/create-checkout-session', async (req, res) => {
-  try {
-    const { lineItems, successUrl, cancelUrl, customerEmail } = req.body
-
-    if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
-      return res.status(400).json({ error: 'Line items are required' })
-    }
-
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems.map(item => ({
-        price: item.price,
-        quantity: item.quantity
-      })),
-      mode: 'payment',
-      success_url: successUrl || `${req.protocol}://${req.get('host')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/checkout/cancel`,
-      customer_email: customerEmail,
-      metadata: {
-        tenant: 'Glow Hairdressing'
-      }
-    })
-
-    res.json({ sessionId: session.id, url: session.url })
-  } catch (error) {
-    console.error('Error creating checkout session:', error)
-    res.status(500).json({ error: error.message || 'Failed to create checkout session' })
-  }
-})
-
-// Stripe webhook handler for payment events (must be before proxy route)
-// Note: This route must use express.raw() to get the raw body for signature verification
-app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature']
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-
-  if (!webhookSecret) {
-    console.warn('STRIPE_WEBHOOK_SECRET not set, skipping webhook verification')
-    return res.status(400).json({ error: 'Webhook secret not configured' })
-  }
-
-  let event
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret)
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message)
-    return res.status(400).send(`Webhook Error: ${err.message}`)
-  }
-
-  // Handle checkout.session.completed
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object
-
-    try {
-      // Get full session details
-      const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-        expand: ['line_items', 'payment_intent']
-      })
-
-      // Send payment data to customer portal
-      const paymentData = {
-        event: 'customer_payment',
-        tenant: 'Glow Hairdressing',
-        data: {
-          sessionId: fullSession.id,
-          amount: fullSession.amount_total, // Amount in cents
-          currency: fullSession.currency || 'eur',
-          customerEmail: fullSession.customer_details?.email || fullSession.customer_email || '',
-          customerName: fullSession.customer_details?.name || '',
-          status: fullSession.payment_status === 'paid' ? 'completed' : 'open',
-          timestamp: new Date(fullSession.created * 1000).toISOString(),
-          productId: fullSession.metadata?.productId || '',
-          priceId: fullSession.line_items?.data?.[0]?.price?.id || '',
-          productName: fullSession.line_items?.data?.[0]?.description || '',
-          quantity: fullSession.line_items?.data?.[0]?.quantity || 1,
-          paymentMethod: 'card',
-          cardBrand: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.brand || '',
-          cardLast4: fullSession.payment_intent?.charges?.data?.[0]?.payment_method_details?.card?.last4 || ''
-        }
-      }
-
-      const portalResponse = await fetch(`${BACKEND_URL}/api/analytics/track`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant': 'Glow Hairdressing'
-        },
-        body: JSON.stringify(paymentData)
-      })
-
-      if (portalResponse.ok) {
-        console.log('✅ Payment data sent to customer portal')
-      } else {
-        console.error('❌ Failed to send payment data to customer portal:', portalResponse.status)
-      }
-    } catch (error) {
-      console.error('❌ Error processing payment webhook:', error)
-    }
-  }
-
-  res.json({ received: true })
 })
 
 // Serve static files from dist directory
