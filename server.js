@@ -104,16 +104,27 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       const firstLineItem = lineItems[0]
       
       // Get payment intent details
-      const paymentIntent = fullSession.payment_intent
       let cardBrand = ''
       let cardLast4 = ''
       
-      if (paymentIntent && typeof paymentIntent === 'object' && 'charges' in paymentIntent) {
-        const charges = paymentIntent.charges?.data || []
-        if (charges.length > 0) {
-          const charge = charges[0]
-          cardBrand = charge.payment_method_details?.card?.brand || ''
-          cardLast4 = charge.payment_method_details?.card?.last4 || ''
+      // Try to get card details from payment intent
+      if (fullSession.payment_intent) {
+        const paymentIntentId = typeof fullSession.payment_intent === 'string' 
+          ? fullSession.payment_intent 
+          : fullSession.payment_intent.id
+        
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+            expand: ['charges.data.payment_method_details']
+          })
+          
+          if (paymentIntent.charges?.data && paymentIntent.charges.data.length > 0) {
+            const charge = paymentIntent.charges.data[0]
+            cardBrand = charge.payment_method_details?.card?.brand || ''
+            cardLast4 = charge.payment_method_details?.card?.last4 || ''
+          }
+        } catch (err) {
+          console.warn('Could not retrieve payment intent details:', err.message)
         }
       }
 
