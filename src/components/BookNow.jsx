@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { getBookingServices, getBookingProviders, createBooking } from '../services/api'
 import './BookNow.css'
@@ -19,33 +19,153 @@ const BookNow = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
+  
+  // Use refs to store current values for comparison without causing re-renders
+  const servicesRef = useRef([])
+  const providersRef = useRef([])
 
-  // Load services and providers on mount
+  // Load services and providers on mount and set up auto-refresh
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
+    // Check if data has changed
+    const hasDataChanged = (oldServices, oldProviders, newServices, newProviders) => {
+      // Compare counts
+      if (oldServices.length !== newServices.length || oldProviders.length !== newProviders.length) {
+        return true
+      }
+      
+      // Compare service IDs
+      const oldServiceIds = new Set(oldServices.map(s => s._id))
+      const newServiceIds = new Set(newServices.map(s => s._id))
+      if (oldServiceIds.size !== newServiceIds.size) {
+        return true
+      }
+      for (const id of newServiceIds) {
+        if (!oldServiceIds.has(id)) return true
+      }
+      for (const id of oldServiceIds) {
+        if (!newServiceIds.has(id)) return true
+      }
+      
+      // Compare provider IDs
+      const oldProviderIds = new Set(oldProviders.map(p => p._id))
+      const newProviderIds = new Set(newProviders.map(p => p._id))
+      if (oldProviderIds.size !== newProviderIds.size) {
+        return true
+      }
+      for (const id of newProviderIds) {
+        if (!oldProviderIds.has(id)) return true
+      }
+      for (const id of oldProviderIds) {
+        if (!newProviderIds.has(id)) return true
+      }
+      
+      return false
+    }
+
+    // Load and refresh services and providers
+    const refreshServicesAndProviders = async (isInitialLoad = false) => {
       try {
         const [servicesResult, providersResult] = await Promise.all([
           getBookingServices(),
           getBookingProviders()
         ])
         
-        if (servicesResult.success) {
-          setServices(servicesResult.services)
+        // Check if authentication is required
+        if (servicesResult.requiresAuth || providersResult.requiresAuth) {
+          if (isInitialLoad) {
+            console.warn('⚠️ Booking endpoints require authentication. Services and providers cannot be loaded automatically.')
+            console.warn('💡 Solution: Backend needs to provide public endpoints for services/providers, or configure them manually in the frontend.')
+            setError('Unable to load booking options. The booking system requires authentication. Please contact support.')
+            setIsLoading(false)
+          } else {
+            // Don't show error on auto-refresh, just log it
+            console.warn('⚠️ Auto-refresh skipped: Authentication required for booking endpoints')
+          }
+          return
         }
         
-        if (providersResult.success) {
-          setProviders(providersResult.providers)
+        const newServices = servicesResult.success ? servicesResult.services : []
+        const newProviders = providersResult.success ? providersResult.providers : []
+        
+        // Get current values from refs
+        const currentServices = servicesRef.current
+        const currentProviders = providersRef.current
+        
+        // Only update if data has changed (or if it's initial load)
+        if (isInitialLoad || hasDataChanged(currentServices, currentProviders, newServices, newProviders)) {
+          if (isInitialLoad) {
+            setIsLoading(true)
+          }
+          
+          // Check if services changed
+          const servicesChanged = JSON.stringify(currentServices.map(s => s._id)) !== JSON.stringify(newServices.map(s => s._id))
+          const providersChanged = JSON.stringify(currentProviders.map(p => p._id)) !== JSON.stringify(newProviders.map(p => p._id))
+          
+          if (servicesResult.success) {
+            setServices(newServices)
+            servicesRef.current = newServices
+            if (servicesChanged && !isInitialLoad) {
+              console.log(`✅ Services updated (${newServices.length} services)`)
+            }
+          }
+          
+          if (providersResult.success) {
+            setProviders(newProviders)
+            providersRef.current = newProviders
+            if (providersChanged && !isInitialLoad) {
+              console.log(`✅ Providers updated (${newProviders.length} providers)`)
+            }
+          }
+          
+          if (isInitialLoad) {
+            if (newServices.length === 0 && newProviders.length === 0) {
+              console.warn('⚠️ No services or providers found. Please configure them in the customer portal.')
+            } else {
+              console.log(`✅ Booking system initialized: ${newServices.length} services, ${newProviders.length} providers`)
+            }
+          }
         }
       } catch (error) {
-        console.error('Error loading booking data:', error)
-        setError('Failed to load booking options. Please refresh the page.')
+        console.error('Error refreshing booking data:', error)
+        if (isInitialLoad) {
+          setError('Failed to load booking options. Please refresh the page.')
+        }
       } finally {
-        setIsLoading(false)
+        if (isInitialLoad) {
+          setIsLoading(false)
+        }
       }
     }
     
-    loadData()
+    // Initial load
+    refreshServicesAndProviders(true)
+    
+    // Set up auto-refresh every 30 seconds
+    const refreshInterval = setInterval(() => {
+      refreshServicesAndProviders(false)
+    }, 30000) // 30 seconds
+    
+    // Refresh when user returns to the page
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshServicesAndProviders(false)
+      }
+    }
+    
+    // Refresh when window gets focus
+    const handleFocus = () => {
+      refreshServicesAndProviders(false)
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    
+    // Cleanup
+    return () => {
+      clearInterval(refreshInterval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
 
   // Generate available time slots
@@ -251,13 +371,23 @@ const BookNow = () => {
           >
             {isLoading ? (
               <div className="loading-message">Loading booking options...</div>
+            ) : error && services.length === 0 && providers.length === 0 ? (
+              <div className="error-message" style={{ margin: '20px 0' }}>
+                <strong>Unable to load booking options</strong>
+                <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
+                  {error}
+                </p>
+                <p style={{ marginTop: '10px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>
+                  The booking system requires backend configuration to provide public access to services and staff members.
+                </p>
+              </div>
             ) : (
               <>
                 <form className="booking-form" onSubmit={handleSubmit}>
                   <div className="form-group">
                     <label htmlFor="service">Service *</label>
                     <select
-                      id="service"
+                      id="service-select"
                       name="service"
                       value={selectedService}
                       onChange={handleServiceChange}
@@ -275,7 +405,7 @@ const BookNow = () => {
                   <div className="form-group">
                     <label htmlFor="provider">Staff Member *</label>
                     <select
-                      id="provider"
+                      id="provider-select"
                       name="provider"
                       value={selectedProvider}
                       onChange={handleProviderChange}

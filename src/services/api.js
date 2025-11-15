@@ -384,6 +384,9 @@ const getSessionId = () => {
 
 /**
  * Get booking services (active services)
+ * Note: This endpoint requires authentication. For public booking forms,
+ * services should be configured in the customer portal and may need to be
+ * fetched through a public endpoint or hardcoded.
  */
 export const getBookingServices = async () => {
   try {
@@ -392,10 +395,21 @@ export const getBookingServices = async () => {
     })
     
     if (!response.ok) {
+      // Handle 401 Unauthorized - endpoint requires authentication
+      if (response.status === 401) {
+        console.warn('Booking services endpoint requires authentication. Using fallback or empty list.')
+        // Return empty list - services should be configured in customer portal
+        // or fetched through a public endpoint
+        return { success: false, services: [], error: 'Authentication required', requiresAuth: true }
+      }
       return { success: false, services: [], error: `Failed to fetch services: ${response.status}` }
     }
     
     const data = await response.json()
+    if (!data.success) {
+      return { success: false, services: [], error: data.message || 'Failed to fetch services', requiresAuth: response.status === 401 }
+    }
+    
     return { success: true, services: data.services || [] }
   } catch (error) {
     console.error('Error fetching booking services:', error)
@@ -405,6 +419,9 @@ export const getBookingServices = async () => {
 
 /**
  * Get booking providers (active staff)
+ * Note: This endpoint requires authentication. For public booking forms,
+ * providers should be configured in the customer portal and may need to be
+ * fetched through a public endpoint or hardcoded.
  */
 export const getBookingProviders = async () => {
   try {
@@ -413,10 +430,21 @@ export const getBookingProviders = async () => {
     })
     
     if (!response.ok) {
+      // Handle 401 Unauthorized - endpoint requires authentication
+      if (response.status === 401) {
+        console.warn('Booking providers endpoint requires authentication. Using fallback or empty list.')
+        // Return empty list - providers should be configured in customer portal
+        // or fetched through a public endpoint
+        return { success: false, providers: [], error: 'Authentication required', requiresAuth: true }
+      }
       return { success: false, providers: [], error: `Failed to fetch providers: ${response.status}` }
     }
     
     const data = await response.json()
+    if (!data.success) {
+      return { success: false, providers: [], error: data.message || 'Failed to fetch providers', requiresAuth: response.status === 401 }
+    }
+    
     return { success: true, providers: data.providers || [] }
   } catch (error) {
     console.error('Error fetching booking providers:', error)
