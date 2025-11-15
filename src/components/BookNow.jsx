@@ -70,25 +70,8 @@ const BookNow = () => {
           getBookingProviders()
         ])
         
-        // Check if authentication is required
-        if (servicesResult.requiresAuth || providersResult.requiresAuth) {
-          if (isInitialLoad) {
-            console.warn('⚠️ Booking endpoints require authentication. Services and providers cannot be loaded automatically.')
-            console.warn('💡 Solution: Backend needs to provide public endpoints for services/providers, or configure them manually in the frontend.')
-            // Don't set error that blocks the page - just log it and continue with empty lists
-            // The form will still be usable, just without pre-populated options
-            setIsLoading(false)
-          } else {
-            // Don't show error on auto-refresh, just log it
-            console.warn('⚠️ Auto-refresh skipped: Authentication required for booking endpoints')
-          }
-          // Continue with empty arrays so the page is still usable
-          setServices([])
-          setProviders([])
-          servicesRef.current = []
-          providersRef.current = []
-          return
-        }
+        // Note: Public endpoints no longer require authentication
+        // If we get empty results, it's because there are no services/providers configured
         
         const newServices = servicesResult.success ? servicesResult.services : []
         const newProviders = providersResult.success ? providersResult.providers : []
@@ -381,9 +364,9 @@ const BookNow = () => {
               <>
                 {services.length === 0 && providers.length === 0 && (
                   <div className="error-message" style={{ marginBottom: '20px' }}>
-                    <strong>⚠️ Booking options unavailable</strong>
+                    <strong>⚠️ No booking options available</strong>
                     <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                      Services and staff members could not be loaded automatically. Please contact us directly to make a booking.
+                      Services and staff members are not currently configured. Please contact us directly to make a booking.
                     </p>
                   </div>
                 )}
