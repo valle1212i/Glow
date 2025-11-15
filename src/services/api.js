@@ -138,7 +138,7 @@ Telefon: ${phone || 'Ej angivet'}`
  * Uses /api/messages endpoint (public, no authentication required)
  */
 export const sendContactMessage = async (messageData) => {
-  const { name, email, phone, message } = messageData
+  const { name, email, phone, subject, message } = messageData
   
   // Get CSRF token (but continue even if it fails - backend might not require it)
   const csrfToken = await getCSRFToken()
@@ -146,10 +146,10 @@ export const sendContactMessage = async (messageData) => {
   
   const payload = {
     tenant: API_CONFIG.TENANT,
-    name,
+    name: name || '',
     email,
     phone: phone || '',
-    subject: 'Kontaktformulär', // Use subject to identify contact form
+    subject: subject || 'Kontaktformulär', // Use provided subject or default to 'Kontaktformulär'
     message,
     company: '' // Honeypot field (must be empty)
   }

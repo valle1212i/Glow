@@ -8,9 +8,12 @@ const Contact = () => {
     name: '',
     email: '',
     phone: '',
-    message: ''
+    subject: '',
+    message: '',
+    company: '' // Honeypot field (must be empty)
   })
   const [submitted, setSubmitted] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -22,24 +25,51 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (formData.name && formData.email && formData.phone && formData.message) {
-      try {
-        const result = await sendContactMessage(formData)
-        
-        if (result.success) {
-          setSubmitted(true)
-          // Reset form after 3 seconds
-          setTimeout(() => {
-            setSubmitted(false)
-            setFormData({ name: '', email: '', phone: '', message: '' })
-          }, 3000)
-        } else {
-          alert(result.error || 'Failed to send message. Please try again.')
-        }
-      } catch (error) {
-        console.error('Contact form error:', error)
-        alert('An error occurred. Please try again.')
+    
+    // Honeypot check - if company field is filled, it's spam
+    if (formData.company) {
+      console.warn('Spam detected: honeypot field filled')
+      return
+    }
+    
+    // Email, phone, and message are required
+    if (!formData.email || !formData.phone || !formData.message) {
+      alert('Email, phone number, and message are required.')
+      return
+    }
+    
+    setIsProcessing(true)
+    try {
+      const result = await sendContactMessage({
+        name: formData.name || '',
+        email: formData.email,
+        phone: formData.phone || '',
+        subject: formData.subject || 'Kontaktformulär',
+        message: formData.message
+      })
+      
+      if (result.success) {
+        setSubmitted(true)
+        // Reset form after 3 seconds
+        setTimeout(() => {
+          setSubmitted(false)
+          setFormData({ 
+            name: '', 
+            email: '', 
+            phone: '', 
+            subject: '',
+            message: '',
+            company: ''
+          })
+        }, 3000)
+      } else {
+        alert(result.error || result.data?.message || 'Failed to send message. Please try again.')
       }
+    } catch (error) {
+      console.error('Contact form error:', error)
+      alert('An error occurred. Please try again.')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -136,8 +166,20 @@ const Contact = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  placeholder="+1 234 567 8900"
+                  placeholder="+46 123 456 789"
                   required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="subject">Subject</label>
+                <input
+                  type="text"
+                  id="subject"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  placeholder="What is this regarding?"
                 />
               </div>
 
@@ -154,14 +196,25 @@ const Contact = () => {
                 />
               </div>
 
+              {/* Honeypot field - hidden from users, must be empty */}
+              <input
+                type="text"
+                name="company"
+                value={formData.company}
+                onChange={handleInputChange}
+                style={{ display: 'none' }}
+                tabIndex="-1"
+                autoComplete="off"
+              />
+
               <motion.button
                 type="submit"
                 className="submit-contact-btn"
-                disabled={!formData.name || !formData.email || !formData.phone || !formData.message}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={!formData.email || !formData.phone || !formData.message || isProcessing}
+                whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+                whileTap={{ scale: isProcessing ? 1 : 0.98 }}
               >
-                {submitted ? 'Message Sent!' : 'Send Message'}
+                {isProcessing ? 'Sending...' : submitted ? 'Message Sent!' : 'Send Message'}
               </motion.button>
             </form>
           </motion.div>
