@@ -396,13 +396,13 @@ export const getBookingServices = async () => {
     })
     
     if (!response.ok) {
-      // Handle 401 - backend may not have public endpoints configured yet
+      // Handle 401 - should not happen if backend is correctly configured
       if (response.status === 401) {
-        console.warn('⚠️ Public booking services endpoint returned 401. Backend may not be configured for public access yet.')
+        console.error('⚠️ Public booking services endpoint returned 401. Backend may need to be redeployed or configured.')
         return { 
           success: false, 
           services: [], 
-          error: 'Backend authentication required - public endpoints may not be configured yet',
+          error: 'Failed to fetch services - authentication error',
           requiresBackendConfig: true
         }
       }
@@ -435,13 +435,13 @@ export const getBookingProviders = async () => {
     })
     
     if (!response.ok) {
-      // Handle 401 - backend may not have public endpoints configured yet
+      // Handle 401 - should not happen if backend is correctly configured
       if (response.status === 401) {
-        console.warn('⚠️ Public booking providers endpoint returned 401. Backend may not be configured for public access yet.')
+        console.error('⚠️ Public booking providers endpoint returned 401. Backend may need to be redeployed or configured.')
         return { 
           success: false, 
           providers: [], 
-          error: 'Backend authentication required - public endpoints may not be configured yet',
+          error: 'Failed to fetch providers - authentication error',
           requiresBackendConfig: true
         }
       }
