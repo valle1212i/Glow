@@ -263,8 +263,10 @@ app.use('/api', async (req, res) => {
       'content-type': req.headers['content-type']
     })
     
-    // Check if this is a public booking endpoint (should not send cookies)
+    // Check if this is a public booking endpoint
     const isPublicBookingEndpoint = req.path.includes('/system/booking/public/')
+    // For POST requests, we still need cookies for CSRF validation even for public endpoints
+    const isPublicBookingPOST = isPublicBookingEndpoint && req.method === 'POST'
     
     const options = {
       method: req.method,
@@ -274,8 +276,10 @@ app.use('/api', async (req, res) => {
           }
     }
     
-    // Only forward cookies for non-public endpoints (public booking endpoints don't need authentication)
-    if (!isPublicBookingEndpoint) {
+    // Forward cookies for:
+    // 1. Non-public endpoints (authentication required)
+    // 2. Public booking POST endpoints (CSRF validation requires cookies)
+    if (!isPublicBookingEndpoint || isPublicBookingPOST) {
       // Forward cookies from the original request (important for CSRF token validation)
       if (req.headers.cookie) {
         options.headers['Cookie'] = req.headers.cookie
@@ -285,10 +289,15 @@ app.use('/api', async (req, res) => {
         options.headers['Cookie'] = backendSessionCookies
         console.log('Using stored backend session cookies:', backendSessionCookies.substring(0, 50) + '...')
       } else {
-        console.warn('No cookies available - this may cause CSRF validation to fail!')
+        if (isPublicBookingPOST) {
+          console.warn('No cookies available for public POST - CSRF validation may fail!')
+        } else {
+          console.warn('No cookies available - this may cause CSRF validation to fail!')
+        }
       }
     } else {
-      console.log('Public booking endpoint - skipping cookie forwarding')
+      // Public booking GET endpoints - no cookies needed
+      console.log('Public booking GET endpoint - skipping cookie forwarding')
     }
     
     // Forward CSRF token if present (only for POST/PUT/DELETE, and not for public GET endpoints)
