@@ -263,33 +263,40 @@ app.use('/api', async (req, res) => {
       'content-type': req.headers['content-type']
     })
     
+    // Check if this is a public booking endpoint (should not send cookies)
+    const isPublicBookingEndpoint = req.path.includes('/system/booking/public/')
+    
     const options = {
       method: req.method,
           headers: {
             'Content-Type': 'application/json',
             'X-Tenant': req.headers['x-tenant'] || 'glowhairdressing' // ✅ Default to database tenant
-          },
+          }
+    }
+    
+    // Only forward cookies for non-public endpoints (public booking endpoints don't need authentication)
+    if (!isPublicBookingEndpoint) {
       // Forward cookies from the original request (important for CSRF token validation)
-      credentials: 'include'
-    }
-    
-    // Forward cookies from the original request OR use stored backend session cookies
-    if (req.headers.cookie) {
-      options.headers['Cookie'] = req.headers.cookie
-      console.log('Forwarding client cookies to backend:', req.headers.cookie.substring(0, 50) + '...')
-    } else if (backendSessionCookies) {
-      // Use stored backend session cookies (established from CSRF token fetch)
-      options.headers['Cookie'] = backendSessionCookies
-      console.log('Using stored backend session cookies:', backendSessionCookies.substring(0, 50) + '...')
+      if (req.headers.cookie) {
+        options.headers['Cookie'] = req.headers.cookie
+        console.log('Forwarding client cookies to backend:', req.headers.cookie.substring(0, 50) + '...')
+      } else if (backendSessionCookies) {
+        // Use stored backend session cookies (established from CSRF token fetch)
+        options.headers['Cookie'] = backendSessionCookies
+        console.log('Using stored backend session cookies:', backendSessionCookies.substring(0, 50) + '...')
+      } else {
+        console.warn('No cookies available - this may cause CSRF validation to fail!')
+      }
     } else {
-      console.warn('No cookies available - this may cause CSRF validation to fail!')
+      console.log('Public booking endpoint - skipping cookie forwarding')
     }
     
-    // Forward CSRF token if present (Express normalizes headers to lowercase)
-    if (req.headers['x-csrf-token']) {
+    // Forward CSRF token if present (only for POST/PUT/DELETE, and not for public GET endpoints)
+    // Public booking GET endpoints don't need CSRF token
+    if (req.headers['x-csrf-token'] && (!isPublicBookingEndpoint || req.method !== 'GET')) {
       options.headers['X-CSRF-Token'] = req.headers['x-csrf-token']
       console.log('Including CSRF token in backend request:', req.headers['x-csrf-token'].substring(0, 20) + '...')
-    } else {
+    } else if (req.method !== 'GET' && !isPublicBookingEndpoint) {
       console.warn('CSRF token missing in request headers!')
     }
     
