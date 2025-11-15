@@ -382,3 +382,154 @@ const getSessionId = () => {
   return sessionId
 }
 
+/**
+ * Get booking services (active services)
+ */
+export const getBookingServices = async () => {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SERVICES}?isActive=true`, {
+      credentials: 'include'
+    })
+    
+    if (!response.ok) {
+      return { success: false, services: [], error: `Failed to fetch services: ${response.status}` }
+    }
+    
+    const data = await response.json()
+    return { success: true, services: data.services || [] }
+  } catch (error) {
+    console.error('Error fetching booking services:', error)
+    return { success: false, services: [], error: error.message }
+  }
+}
+
+/**
+ * Get booking providers (active staff)
+ */
+export const getBookingProviders = async () => {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_PROVIDERS}?isActive=true`, {
+      credentials: 'include'
+    })
+    
+    if (!response.ok) {
+      return { success: false, providers: [], error: `Failed to fetch providers: ${response.status}` }
+    }
+    
+    const data = await response.json()
+    return { success: true, providers: data.providers || [] }
+  } catch (error) {
+    console.error('Error fetching booking providers:', error)
+    return { success: false, providers: [], error: error.message }
+  }
+}
+
+/**
+ * Create a booking
+ */
+export const createBooking = async (bookingData) => {
+  const { serviceId, providerId, date, startTime, duration, customerName, email, phone } = bookingData
+  
+  // Validate required fields
+  if (!serviceId || !providerId || !date || !startTime || !customerName) {
+    return {
+      success: false,
+      error: 'Service, provider, date, start time, and customer name are required.'
+    }
+  }
+  
+  // Get CSRF token
+  const csrfToken = await getCSRFToken()
+  if (!csrfToken) {
+    return {
+      success: false,
+      error: 'Could not get security token. Please refresh the page and try again.'
+    }
+  }
+  
+  // Convert date and time to ISO format
+  const startDate = new Date(`${date}T${startTime}`)
+  const endDate = new Date(startDate.getTime() + (duration || 60) * 60000) // duration in minutes
+  
+  const payload = {
+    serviceId,
+    providerId,
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+    customerName,
+    email: email || '',
+    phone: phone || '',
+    status: 'confirmed'
+  }
+  
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_BOOKINGS}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    })
+    
+    const data = await response.json()
+    
+    // Handle conflict (double booking)
+    if (response.status === 409) {
+      return {
+        success: false,
+        conflict: true,
+        error: 'This time slot is already booked. Please choose another time.'
+      }
+    }
+    
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        error: data.message || data.error || 'Failed to create booking'
+      }
+    }
+    
+    return {
+      success: true,
+      booking: data.booking
+    }
+  } catch (error) {
+    console.error('Error creating booking:', error)
+    return {
+      success: false,
+      error: error.message || 'An error occurred while creating the booking.'
+    }
+  }
+}
+
+/**
+ * Get bookings for a date range
+ */
+export const getBookings = async (fromDate, toDate, providerId = null) => {
+  try {
+    const from = new Date(fromDate).toISOString()
+    const to = new Date(toDate).toISOString()
+    
+    let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_BOOKINGS}?from=${from}&to=${to}`
+    if (providerId) {
+      url += `&providerId=${providerId}`
+    }
+    
+    const response = await fetch(url, {
+      credentials: 'include'
+    })
+    
+    if (!response.ok) {
+      return { success: false, bookings: [], error: `Failed to fetch bookings: ${response.status}` }
+    }
+    
+    const data = await response.json()
+    return { success: true, bookings: data.bookings || [] }
+  } catch (error) {
+    console.error('Error fetching bookings:', error)
+    return { success: false, bookings: [], error: error.message }
+  }
+}
+
