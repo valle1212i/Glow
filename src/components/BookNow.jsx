@@ -75,12 +75,18 @@ const BookNow = () => {
           if (isInitialLoad) {
             console.warn('⚠️ Booking endpoints require authentication. Services and providers cannot be loaded automatically.')
             console.warn('💡 Solution: Backend needs to provide public endpoints for services/providers, or configure them manually in the frontend.')
-            setError('Unable to load booking options. The booking system requires authentication. Please contact support.')
+            // Don't set error that blocks the page - just log it and continue with empty lists
+            // The form will still be usable, just without pre-populated options
             setIsLoading(false)
           } else {
             // Don't show error on auto-refresh, just log it
             console.warn('⚠️ Auto-refresh skipped: Authentication required for booking endpoints')
           }
+          // Continue with empty arrays so the page is still usable
+          setServices([])
+          setProviders([])
+          servicesRef.current = []
+          providersRef.current = []
           return
         }
         
@@ -371,54 +377,88 @@ const BookNow = () => {
           >
             {isLoading ? (
               <div className="loading-message">Loading booking options...</div>
-            ) : error && services.length === 0 && providers.length === 0 ? (
-              <div className="error-message" style={{ margin: '20px 0' }}>
-                <strong>Unable to load booking options</strong>
-                <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                  {error}
-                </p>
-                <p style={{ marginTop: '10px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>
-                  The booking system requires backend configuration to provide public access to services and staff members.
-                </p>
-              </div>
             ) : (
               <>
+                {services.length === 0 && providers.length === 0 && (
+                  <div className="error-message" style={{ marginBottom: '20px' }}>
+                    <strong>⚠️ Booking options unavailable</strong>
+                    <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
+                      Services and staff members could not be loaded automatically. Please contact us directly to make a booking.
+                    </p>
+                  </div>
+                )}
                 <form className="booking-form" onSubmit={handleSubmit}>
-                  <div className="form-group">
-                    <label htmlFor="service">Service *</label>
-                    <select
-                      id="service-select"
-                      name="service"
-                      value={selectedService}
-                      onChange={handleServiceChange}
-                      required
-                    >
-                      <option value="">Select a service...</option>
-                      {services.map(service => (
-                        <option key={service._id} value={service._id}>
-                          {service.name} ({service.durationMin} min)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {services.length > 0 ? (
+                    <div className="form-group">
+                      <label htmlFor="service">Service *</label>
+                      <select
+                        id="service-select"
+                        name="service"
+                        value={selectedService}
+                        onChange={handleServiceChange}
+                        required
+                      >
+                        <option value="">Select a service...</option>
+                        {services.map(service => (
+                          <option key={service._id} value={service._id}>
+                            {service.name} ({service.durationMin} min)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label htmlFor="service">Service *</label>
+                      <input
+                        type="text"
+                        id="service"
+                        name="service"
+                        placeholder="Enter service name"
+                        required
+                        disabled
+                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                      />
+                      <small style={{ color: 'var(--text-gray)', fontSize: '0.85rem' }}>
+                        Service selection unavailable. Please contact us directly.
+                      </small>
+                    </div>
+                  )}
 
-                  <div className="form-group">
-                    <label htmlFor="provider">Staff Member *</label>
-                    <select
-                      id="provider-select"
-                      name="provider"
-                      value={selectedProvider}
-                      onChange={handleProviderChange}
-                      required
-                    >
-                      <option value="">Select a staff member...</option>
-                      {providers.map(provider => (
-                        <option key={provider._id} value={provider._id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {providers.length > 0 ? (
+                    <div className="form-group">
+                      <label htmlFor="provider">Staff Member *</label>
+                      <select
+                        id="provider-select"
+                        name="provider"
+                        value={selectedProvider}
+                        onChange={handleProviderChange}
+                        required
+                      >
+                        <option value="">Select a staff member...</option>
+                        {providers.map(provider => (
+                          <option key={provider._id} value={provider._id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label htmlFor="provider">Staff Member *</label>
+                      <input
+                        type="text"
+                        id="provider"
+                        name="provider"
+                        placeholder="Enter staff member name"
+                        required
+                        disabled
+                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                      />
+                      <small style={{ color: 'var(--text-gray)', fontSize: '0.85rem' }}>
+                        Staff selection unavailable. Please contact us directly.
+                      </small>
+                    </div>
+                  )}
 
                   {selectedDate && (
                     <div className="time-selection">
@@ -479,15 +519,27 @@ const BookNow = () => {
                     <div className="error-message">{error}</div>
                   )}
 
-                  <motion.button
-                    type="submit"
-                    className="submit-booking-btn"
-                    disabled={!selectedService || !selectedProvider || !selectedDate || !selectedTime || !formData.name || isProcessing}
-                    whileHover={{ scale: isProcessing ? 1 : 1.02 }}
-                    whileTap={{ scale: isProcessing ? 1 : 0.98 }}
-                  >
-                    {isProcessing ? 'Processing...' : submitted ? 'Booking Confirmed!' : 'Confirm Booking'}
-                  </motion.button>
+                  {(services.length === 0 || providers.length === 0) ? (
+                    <div style={{ padding: '20px', background: 'var(--bg-light)', borderRadius: '5px', textAlign: 'center' }}>
+                      <p style={{ marginBottom: '15px', color: 'var(--text-gray)' }}>
+                        To make a booking, please contact us directly:
+                      </p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 400 }}>
+                        <strong>Email:</strong> info@glowhairdresser.com<br />
+                        <strong>Phone:</strong> +1 (234) 567-8900
+                      </p>
+                    </div>
+                  ) : (
+                    <motion.button
+                      type="submit"
+                      className="submit-booking-btn"
+                      disabled={!selectedService || !selectedProvider || !selectedDate || !selectedTime || !formData.name || isProcessing}
+                      whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+                      whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+                    >
+                      {isProcessing ? 'Processing...' : submitted ? 'Booking Confirmed!' : 'Confirm Booking'}
+                    </motion.button>
+                  )}
                 </form>
               </>
             )}
