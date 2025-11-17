@@ -370,6 +370,13 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   }
 
   try {
+    // 🔍 DEBUG: Log checkout initiation
+    console.log('🛒 [ABANDONED CART] Initiating checkout session:', {
+      cartItemsCount: cartItems.length,
+      productId: productId || 'none',
+      timestamp: new Date().toISOString()
+    })
+
     // Call our own backend route (not customer portal)
     const response = await fetch('/api/create-checkout-session', {
       method: 'POST',
@@ -382,6 +389,15 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     const data = await response.json()
 
     if (response.ok && data.url) {
+      // 🔍 DEBUG: Log successful session creation before redirect
+      console.log('✅ [ABANDONED CART] Checkout session created successfully:', {
+        sessionId: data.sessionId,
+        url: data.url.substring(0, 50) + '...',
+        redirecting: true,
+        timestamp: new Date().toISOString()
+      })
+      console.log('📊 [ABANDONED CART] Session will be tracked by customer portal. If cancelled, will be marked as abandoned after 30 minutes.')
+      
       // Redirect to Stripe checkout
       window.location.href = data.url
       return { success: true }

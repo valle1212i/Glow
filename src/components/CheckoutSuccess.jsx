@@ -11,6 +11,14 @@ const CheckoutSuccess = () => {
 
   useEffect(() => {
     if (sessionId) {
+      // 🔍 DEBUG: Log successful checkout completion
+      console.log('✅ [ABANDONED CART] Checkout completed successfully:', {
+        sessionId: sessionId,
+        timestamp: new Date().toISOString(),
+        message: 'Session will be marked as completed in customer portal (not abandoned)'
+      })
+      console.log('📊 [ABANDONED CART] This session will NOT be counted as abandoned cart')
+      
       // Send payment tracking event to customer portal
       sendPaymentTracking(sessionId)
     } else {

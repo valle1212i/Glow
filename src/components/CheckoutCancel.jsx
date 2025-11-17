@@ -1,9 +1,22 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import './CheckoutCancel.css'
 
 const CheckoutCancel = () => {
+  const [searchParams] = useSearchParams()
+  const sessionId = searchParams.get('session_id')
+
+  useEffect(() => {
+    // 🔍 DEBUG: Log checkout cancellation
+    console.log('❌ [ABANDONED CART] Checkout was cancelled:', {
+      sessionId: sessionId || 'unknown',
+      timestamp: new Date().toISOString(),
+      message: 'Session will be marked as abandoned after 30 minutes if not completed'
+    })
+    console.log('📊 [ABANDONED CART] Check customer portal dashboard to see abandoned cart tracking')
+  }, [sessionId])
+
   return (
     <div className="checkout-cancel-page">
       <div className="container">

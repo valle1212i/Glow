@@ -22,13 +22,21 @@ const Cart = () => {
     
     setIsProcessing(true)
     try {
+      // 🔍 DEBUG: Log checkout button click
+      console.log('🛒 [ABANDONED CART] Checkout button clicked:', {
+        cartItemsCount: cartItems.length,
+        totalPrice: getTotalPrice(),
+        timestamp: new Date().toISOString()
+      })
+      
       const result = await createCheckoutSession(cartItems, getCheckoutPriceId)
       if (!result.success) {
+        console.error('❌ [ABANDONED CART] Checkout failed:', result.error)
         alert(result.error || 'Ett fel uppstod vid checkout. Försök igen.')
       }
       // If successful, redirect happens in createCheckoutSession
     } catch (error) {
-      console.error('Checkout error:', error)
+      console.error('❌ [ABANDONED CART] Checkout error:', error)
       alert('Ett fel uppstod vid checkout. Försök igen.')
     } finally {
       setIsProcessing(false)

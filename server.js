@@ -70,6 +70,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
       metadata.productId = productId
     }
 
+    // 🔍 DEBUG: Log checkout session creation with tenant metadata
+    console.log('🛒 [ABANDONED CART] Creating checkout session with metadata:', {
+      tenant: metadata.tenant,
+      productId: metadata.productId || 'none',
+      mode: checkoutMode,
+      lineItemsCount: lineItems.length,
+      customerEmail: customerEmail || 'none'
+    })
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -92,7 +101,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
       metadata: metadata
     })
 
-    console.log(`✅ Created ${checkoutMode} checkout session:`, session.id)
+    // 🔍 DEBUG: Log successful session creation
+    console.log(`✅ [ABANDONED CART] Created ${checkoutMode} checkout session:`, {
+      sessionId: session.id,
+      url: session.url,
+      tenant: metadata.tenant,
+      metadata: session.metadata,
+      createdAt: new Date().toISOString()
+    })
+    console.log('📊 [ABANDONED CART] Session will be tracked by customer portal webhook when checkout.session.created event is received')
+    
     res.json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Error creating checkout session:', error)
