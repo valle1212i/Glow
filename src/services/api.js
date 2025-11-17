@@ -199,20 +199,53 @@ Period: ${period || 'Ej angivet'}`
   })
 }
 
+const getDeviceType = () => {
+  if (typeof navigator === 'undefined') {
+    return 'unknown'
+  }
+  const ua = navigator.userAgent?.toLowerCase() || ''
+  if (/ipad|tablet/.test(ua)) return 'tablet'
+  if (/mobi|iphone|ipod|android/.test(ua)) return 'mobile'
+  return 'desktop'
+}
+
+const getTrafficSource = () => {
+  if (typeof document === 'undefined') {
+    return 'direct'
+  }
+  const ref = document.referrer || ''
+  if (!ref) return 'direct'
+  try {
+    const url = new URL(ref)
+    const host = url.hostname.toLowerCase()
+    if (host.includes('google')) return 'organic'
+    if (host.includes('facebook') || host.includes('instagram')) return 'social'
+    return 'referral'
+  } catch {
+    return 'referral'
+  }
+}
+
 /**
  * Track analytics event
  * Note: Analytics endpoint doesn't require CSRF protection
  * Fails silently if backend is unavailable (502, 503, etc.)
  */
 export const trackEvent = async (eventType, eventData = {}) => {
+  const defaultData = {
+    page: typeof window !== 'undefined' ? window.location.pathname : '/',
+    referrer: typeof document !== 'undefined' ? document.referrer : '',
+    sessionId: getSessionId(),
+    device: getDeviceType(),
+    source: getTrafficSource(),
+    timestamp: new Date().toISOString()
+  }
+
   const payload = {
     event: eventType,
     tenant: API_CONFIG.TENANT,
     data: {
-      page: window.location.pathname,
-      referrer: document.referrer,
-      sessionId: getSessionId(),
-      timestamp: new Date().toISOString(),
+      ...defaultData,
       ...eventData
     }
   }
@@ -225,7 +258,6 @@ export const trackEvent = async (eventType, eventData = {}) => {
         'Content-Type': 'application/json',
         'X-Tenant': API_CONFIG.TENANT
       },
-      credentials: 'include',
       body: JSON.stringify(payload)
       // Note: Timeout handling can be added if needed for better UX
     })

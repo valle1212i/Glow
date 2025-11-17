@@ -10,6 +10,10 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const BACKEND_URL = process.env.VITE_API_URL || 'https://source-database.onrender.com'
 
+// Tenant identifier (must match exactly with customer portal database)
+// Used for abandoned cart tracking and multi-tenant isolation
+const TENANT = process.env.CUSTOMER_PORTAL_TENANT || 'glowhairdressing'
+
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia'
@@ -54,8 +58,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
 
     // Build metadata
+    // ✅ CRITICAL: Include tenant in metadata for abandoned cart tracking
+    // This enables automatic tracking of checkout sessions and abandoned carts
+    // See: ABANDONED_CARTS_TENANT_IMPLEMENTATION.md
     const metadata = {
-      tenant: 'glowhairdressing' // ✅ Must match database tenant exactly
+      tenant: TENANT // ✅ Must match database tenant exactly (case-sensitive)
     }
     
     // Add productId to metadata if provided (for subscriptions or products)
