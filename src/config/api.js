@@ -27,6 +27,12 @@ export const API_CONFIG = {
     // Campaign Price Check
     CAMPAIGN_PRICE: import.meta.env.PROD ? '/campaigns/price' : '/api/campaigns/price',
     
+    // Inventory Status (Public Endpoint - no authentication required)
+    INVENTORY_STATUS: (tenantId, productId) => 
+      import.meta.env.PROD 
+        ? `/inventory/public/${tenantId}/${productId}`
+        : `/api/inventory/public/${tenantId}/${productId}`,
+    
     // Booking System (Public Endpoints - no authentication required)
     BOOKING_SERVICES: import.meta.env.PROD ? '/system/booking/public/services' : '/api/system/booking/public/services',
     BOOKING_PROVIDERS: import.meta.env.PROD ? '/system/booking/public/providers' : '/api/system/booking/public/providers',

@@ -1,11 +1,13 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { checkInventoryStatus, formatStockDisplay } from '../services/inventory'
 import './Products.css'
 
 const Products = () => {
   const { addToCart } = useCart()
+  const [inventoryData, setInventoryData] = useState({})
 
   const hairProducts = [
     {
@@ -104,6 +106,30 @@ const Products = () => {
     }
   }
 
+  // Check inventory status for all products on mount
+  useEffect(() => {
+    const checkInventories = async () => {
+      const inventoryPromises = hairProducts.map(async (product) => {
+        if (product.productId) {
+          const inventory = await checkInventoryStatus(product.productId)
+          return { productId: product.productId, inventory }
+        }
+        return null
+      })
+
+      const results = await Promise.all(inventoryPromises)
+      const inventoryMap = {}
+      results.forEach((result) => {
+        if (result && result.productId) {
+          inventoryMap[result.productId] = result.inventory
+        }
+      })
+      setInventoryData(inventoryMap)
+    }
+
+    checkInventories()
+  }, [])
+
   return (
     <section className="products-section">
       <div className="container">
@@ -140,22 +166,42 @@ const Products = () => {
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 0.3 }}
                   />
+                  {/* Inventory Badge */}
+                  {inventoryData[product.productId] && (
+                    <>
+                      {inventoryData[product.productId].outOfStock && (
+                        <span className="inventory-badge out-of-stock">Slutsåld</span>
+                      )}
+                      {inventoryData[product.productId].lowStock && !inventoryData[product.productId].outOfStock && (
+                        <span className="inventory-badge low-stock">Snart slutsåld</span>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="product-info">
                   <h3 className="product-name">{product.name}</h3>
                   <motion.button
-                    className="add-to-cart-btn"
+                    className={`add-to-cart-btn ${inventoryData[product.productId]?.outOfStock ? 'disabled' : ''}`}
                     onClick={(e) => {
                       e.preventDefault()
-                      addToCart(product)
+                      if (!inventoryData[product.productId]?.outOfStock) {
+                        addToCart(product)
+                      }
                     }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    disabled={inventoryData[product.productId]?.outOfStock}
+                    whileHover={!inventoryData[product.productId]?.outOfStock ? { scale: 1.05 } : {}}
+                    whileTap={!inventoryData[product.productId]?.outOfStock ? { scale: 0.95 } : {}}
                   >
-                    Add to Cart
+                    {inventoryData[product.productId]?.outOfStock ? 'Slutsåld' : 'Add to Cart'}
                   </motion.button>
                   <p className="product-description">{product.description}</p>
                   <p className="product-price">{product.price.toLocaleString('sv-SE')} kr</p>
+                  {/* Stock Count */}
+                  {inventoryData[product.productId] && (
+                    <p className={`stock-count ${inventoryData[product.productId].outOfStock ? 'out' : inventoryData[product.productId].lowStock ? 'low' : 'in'}`}>
+                      {formatStockDisplay(inventoryData[product.productId])}
+                    </p>
+                  )}
                 </div>
               </Link>
             </motion.div>

@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState } from 'react'
-// Campaign price checking disabled - import removed for now
-// import { getCampaignPrice } from '../services/api'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { getCampaignPrice } from '../services/api'
 
 const CartContext = createContext()
 
@@ -16,9 +15,7 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([])
   const [isCartOpen, setIsCartOpen] = useState(false)
 
-  // Campaign price checking disabled - endpoint not available yet
-  // TODO: Re-enable when /api/campaigns/price endpoint is implemented
-  /*
+  // Check for campaign prices when items are added to cart
   useEffect(() => {
     const checkCampaignPrices = async () => {
       const itemsToCheck = cartItems.filter(item => item.productId && !item.campaignPriceChecked)
@@ -51,14 +48,13 @@ export const CartProvider = ({ children }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartItems.length]) // Only run when cart items count changes
-  */
 
   const addToCart = async (product) => {
-    // Campaign price checking disabled - use regular price
+    // Campaign price will be checked in useEffect after item is added
     const finalProduct = { 
       ...product, 
       quantity: 1, 
-      campaignPriceChecked: true, // Mark as checked to skip campaign lookup
+      campaignPriceChecked: false, // Will be checked by useEffect
       hasCampaign: false,
       campaignPriceId: null
     }

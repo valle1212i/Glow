@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useCart } from '../context/CartContext'
 import { FiArrowLeft } from 'react-icons/fi'
+import { checkInventoryStatus, formatStockDisplay } from '../services/inventory'
 import './ProductDetail.css'
 
 // Product data - in a real app, this would come from an API
@@ -94,8 +95,23 @@ const ProductDetail = () => {
   const navigate = useNavigate()
   const { addToCart } = useCart()
   const [quantity, setQuantity] = useState(1)
+  const [inventory, setInventory] = useState(null)
+  const [inventoryLoading, setInventoryLoading] = useState(true)
   
   const product = allProducts.find(p => p.id === parseInt(id))
+
+  // Check inventory status on mount
+  useEffect(() => {
+    if (product?.productId) {
+      setInventoryLoading(true)
+      checkInventoryStatus(product.productId).then((inv) => {
+        setInventory(inv)
+        setInventoryLoading(false)
+      })
+    } else {
+      setInventoryLoading(false)
+    }
+  }, [product?.productId])
 
   if (!product) {
     return (
@@ -109,6 +125,9 @@ const ProductDetail = () => {
   }
 
   const handleAddToCart = () => {
+    if (inventory?.outOfStock) {
+      return // Don't add to cart if out of stock
+    }
     for (let i = 0; i < quantity; i++) {
       addToCart(product)
     }
@@ -155,6 +174,21 @@ const ProductDetail = () => {
               <span className="product-price">{product.price.toLocaleString('sv-SE')} kr</span>
             </div>
 
+            {/* Inventory Status */}
+            {!inventoryLoading && inventory && (
+              <div className="inventory-status-section">
+                {inventory.outOfStock && (
+                  <span className="inventory-badge out-of-stock">Slutsåld</span>
+                )}
+                {inventory.lowStock && !inventory.outOfStock && (
+                  <span className="inventory-badge low-stock">Snart slutsåld</span>
+                )}
+                <p className={`stock-count ${inventory.outOfStock ? 'out' : inventory.lowStock ? 'low' : 'in'}`}>
+                  {formatStockDisplay(inventory)}
+                </p>
+              </div>
+            )}
+
             <div className="product-description">
               <p>{product.fullDescription}</p>
             </div>
@@ -174,12 +208,13 @@ const ProductDetail = () => {
             </div>
 
             <motion.button
-              className="add-to-cart-button"
+              className={`add-to-cart-button ${inventory?.outOfStock ? 'disabled' : ''}`}
               onClick={handleAddToCart}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              disabled={inventory?.outOfStock}
+              whileHover={!inventory?.outOfStock ? { scale: 1.02 } : {}}
+              whileTap={!inventory?.outOfStock ? { scale: 0.98 } : {}}
             >
-              Add to cart
+              {inventory?.outOfStock ? 'Slutsåld' : 'Add to cart'}
             </motion.button>
 
             <div className="product-features">
