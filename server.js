@@ -110,8 +110,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
       createdAt: new Date().toISOString()
     })
 
-    // Register session with customer portal for abandoned cart tracking
+    // ✅ CRITICAL: Register checkout session for abandoned cart tracking
+    // This MUST be done immediately after creating the session
+    // See: ABANDONED_CARTS_TENANT_IMPLEMENTATION.md
     try {
+      console.log('🛒 [ABANDONED CART] Registering session with customer portal:', session.id)
+      
       const trackPayload = {
         sessionId: session.id,
         tenant: metadata.tenant,
@@ -119,9 +123,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
         currency: session.currency || 'SEK',
         customerEmail: session.customer_email || null,
         customerName: session.customer_details?.name || null,
-        createdAt: session.created ? new Date(session.created * 1000).toISOString() : new Date().toISOString(),
-        status: 'started',
-        source: 'website_checkout'
+        createdAt: session.created ? new Date(session.created * 1000).toISOString() : new Date().toISOString()
       }
 
       const trackResponse = await fetch(`${BACKEND_URL}/api/carts/track`, {
@@ -133,21 +135,27 @@ app.post('/api/create-checkout-session', async (req, res) => {
         body: JSON.stringify(trackPayload)
       })
 
+      if (!trackResponse.ok) {
+        const errorText = await trackResponse.text()
+        throw new Error(`HTTP ${trackResponse.status}: ${errorText}`)
+      }
+
       const trackResult = await trackResponse.json()
-      if (trackResponse.ok && trackResult.success) {
-        console.log('✅ [ABANDONED CART] Session registered with customer portal:', {
+      
+      if (trackResult.success) {
+        console.log('✅ [ABANDONED CART] Session registered successfully:', {
           sessionId: session.id,
-          tenant: metadata.tenant
+          tenant: metadata.tenant,
+          recordId: trackResult.recordId,
+          status: trackResult.status
         })
       } else {
-        console.error('❌ [ABANDONED CART] Failed to register session with customer portal:', {
-          sessionId: session.id,
-          status: trackResponse.status,
-          response: trackResult
-        })
+        console.error('❌ [ABANDONED CART] Failed to register session:', trackResult.message)
       }
-    } catch (trackError) {
-      console.error('❌ [ABANDONED CART] Error registering session with customer portal:', trackError)
+    } catch (error) {
+      console.error('❌ [ABANDONED CART] Error registering session:', error)
+      // Fortsätt ändå - detta är inte kritiskt för checkout flow
+      // Session kommer ändå fungera, men abandoned cart tracking fungerar inte
     }
     
     res.json({ sessionId: session.id, url: session.url })
