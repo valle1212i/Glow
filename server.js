@@ -109,7 +109,46 @@ app.post('/api/create-checkout-session', async (req, res) => {
       metadata: session.metadata,
       createdAt: new Date().toISOString()
     })
-    console.log('📊 [ABANDONED CART] Session will be tracked by customer portal webhook when checkout.session.created event is received')
+
+    // Register session with customer portal for abandoned cart tracking
+    try {
+      const trackPayload = {
+        sessionId: session.id,
+        tenant: metadata.tenant,
+        amountTotal: session.amount_total || 0,
+        currency: session.currency || 'SEK',
+        customerEmail: session.customer_email || null,
+        customerName: session.customer_details?.name || null,
+        createdAt: session.created ? new Date(session.created * 1000).toISOString() : new Date().toISOString(),
+        status: 'started',
+        source: 'website_checkout'
+      }
+
+      const trackResponse = await fetch(`${BACKEND_URL}/api/carts/track`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant': metadata.tenant
+        },
+        body: JSON.stringify(trackPayload)
+      })
+
+      const trackResult = await trackResponse.json()
+      if (trackResponse.ok && trackResult.success) {
+        console.log('✅ [ABANDONED CART] Session registered with customer portal:', {
+          sessionId: session.id,
+          tenant: metadata.tenant
+        })
+      } else {
+        console.error('❌ [ABANDONED CART] Failed to register session with customer portal:', {
+          sessionId: session.id,
+          status: trackResponse.status,
+          response: trackResult
+        })
+      }
+    } catch (trackError) {
+      console.error('❌ [ABANDONED CART] Error registering session with customer portal:', trackError)
+    }
     
     res.json({ sessionId: session.id, url: session.url })
   } catch (error) {
