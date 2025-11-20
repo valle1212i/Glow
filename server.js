@@ -434,6 +434,17 @@ app.use('/api', async (req, res) => {
     // Log response status and set-cookie headers for debugging
     console.log(`Backend response: ${response.status} ${response.statusText} for ${req.method} ${url}`)
     
+    // Special logging for analytics events endpoint errors
+    if (isAnalyticsEventsEndpoint && !response.ok) {
+      console.error('❌ [ANALYTICS] Backend returned error for analytics events endpoint:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: url,
+        hasApiKey: !!options.headers['Authorization'],
+        hasTenant: !!options.headers['X-Tenant']
+      })
+    }
+    
     // Check if backend is setting cookies (for session management)
     // Note: response.headers.get('set-cookie') might only return first cookie
     // We need to get all Set-Cookie headers
