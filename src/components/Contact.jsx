@@ -39,7 +39,7 @@ const Contact = () => {
     }
     
     setIsProcessing(true)
-    try {
+      try {
       const result = await sendContactMessage({
         name: formData.name || '',
         email: formData.email,
@@ -47,12 +47,12 @@ const Contact = () => {
         subject: formData.subject || 'Kontaktformulär',
         message: formData.message
       })
-      
-      if (result.success) {
-        setSubmitted(true)
-        // Reset form after 3 seconds
-        setTimeout(() => {
-          setSubmitted(false)
+        
+        if (result.success) {
+          setSubmitted(true)
+          // Reset form after 3 seconds
+          setTimeout(() => {
+            setSubmitted(false)
           setFormData({ 
             name: '', 
             email: '', 
@@ -61,13 +61,13 @@ const Contact = () => {
             message: '',
             company: ''
           })
-        }, 3000)
-      } else {
+          }, 3000)
+        } else {
         alert(result.error || result.data?.message || 'Failed to send message. Please try again.')
-      }
-    } catch (error) {
-      console.error('Contact form error:', error)
-      alert('An error occurred. Please try again.')
+        }
+      } catch (error) {
+        console.error('Contact form error:', error)
+        alert('An error occurred. Please try again.')
     } finally {
       setIsProcessing(false)
     }

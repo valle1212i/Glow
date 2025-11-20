@@ -448,7 +448,8 @@ export const trackGeoEvent = async (eventData) => {
     const response = await fetch('/api/analytics/events', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Tenant': API_CONFIG.TENANT
       },
       body: JSON.stringify({ events: [eventData] })
     })

@@ -185,7 +185,7 @@ const Products = () => {
                     onClick={(e) => {
                       e.preventDefault()
                       if (!inventoryData[product.productId]?.outOfStock) {
-                        addToCart(product)
+                      addToCart(product)
                       }
                     }}
                     disabled={inventoryData[product.productId]?.outOfStock}

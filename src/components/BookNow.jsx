@@ -263,20 +263,20 @@ const BookNow = () => {
         customerName: formData.name,
         email: formData.email || '',
         phone: formData.phone || ''
-      })
-      
-      if (result.success) {
-        setSubmitted(true)
-        // Reset form after 3 seconds
-        setTimeout(() => {
-          setSubmitted(false)
+        })
+        
+        if (result.success) {
+          setSubmitted(true)
+          // Reset form after 3 seconds
+          setTimeout(() => {
+            setSubmitted(false)
           setSelectedService('')
           setSelectedProvider('')
-          setSelectedDate(null)
-          setSelectedTime('')
-          setFormData({ name: '', email: '', phone: '' })
-        }, 3000)
-      } else {
+            setSelectedDate(null)
+            setSelectedTime('')
+            setFormData({ name: '', email: '', phone: '' })
+          }, 3000)
+        } else {
         if (result.conflict) {
           setError('This time slot is already booked. Please choose another time.')
         } else {
@@ -443,60 +443,60 @@ const BookNow = () => {
                     </div>
                   )}
 
-                  {selectedDate && (
-                    <div className="time-selection">
-                      <h3>Select Time</h3>
-                      <div className="time-slots-grid">
-                        {timeSlots.map(time => (
-                          <button
-                            key={time}
+            {selectedDate && (
+              <div className="time-selection">
+                <h3>Select Time</h3>
+                <div className="time-slots-grid">
+                  {timeSlots.map(time => (
+                    <button
+                      key={time}
                             type="button"
-                            className={`time-slot ${selectedTime === time ? 'selected' : ''}`}
-                            onClick={() => setSelectedTime(time)}
-                          >
-                            {time}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                      className={`time-slot ${selectedTime === time ? 'selected' : ''}`}
+                      onClick={() => setSelectedTime(time)}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                  <div className="form-group">
+              <div className="form-group">
                     <label htmlFor="name">Name *</label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="Your full name"
-                      required
-                    />
-                  </div>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
 
-                  <div className="form-group">
-                    <label htmlFor="email">Email</label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="your.email@example.com"
-                    />
-                  </div>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="your.email@example.com"
+                />
+              </div>
 
-                  <div className="form-group">
-                    <label htmlFor="phone">Phone Number</label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
+              <div className="form-group">
+                <label htmlFor="phone">Phone Number</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
                       placeholder="+46 123 456 789"
-                    />
-                  </div>
+                />
+              </div>
 
                   {error && (
                     <div className="error-message">{error}</div>
@@ -513,17 +513,17 @@ const BookNow = () => {
                       </p>
                     </div>
                   ) : (
-                    <motion.button
-                      type="submit"
-                      className="submit-booking-btn"
+              <motion.button
+                type="submit"
+                className="submit-booking-btn"
                       disabled={!selectedService || !selectedProvider || !selectedDate || !selectedTime || !formData.name || isProcessing}
                       whileHover={{ scale: isProcessing ? 1 : 1.02 }}
                       whileTap={{ scale: isProcessing ? 1 : 0.98 }}
-                    >
+              >
                       {isProcessing ? 'Processing...' : submitted ? 'Booking Confirmed!' : 'Confirm Booking'}
-                    </motion.button>
+              </motion.button>
                   )}
-                </form>
+            </form>
               </>
             )}
           </motion.div>

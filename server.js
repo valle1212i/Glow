@@ -165,32 +165,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 })
 
-// Geo analytics events proxy (requires API key)
-app.post('/api/analytics/events', async (req, res) => {
-  try {
-    const apiKey = process.env.ANALYTICS_API_KEY
-    if (!apiKey) {
-      console.error('ANALYTICS_API_KEY not configured')
-      return res.status(500).json({ success: false, error: 'Analytics API key not configured' })
-    }
-
-    const response = await fetch(`${BACKEND_URL}/api/analytics/events`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(req.body)
-    })
-
-    const data = await response.json()
-    return res.status(response.status).json(data)
-  } catch (error) {
-    console.error('Error forwarding analytics events:', error)
-    res.status(500).json({ success: false, error: 'Failed to forward analytics events' })
-  }
-})
-
 // Stripe webhook handler for payment events (must be BEFORE proxy route)
 // Note: This route must use express.raw() to get the raw body for signature verification
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -366,6 +340,9 @@ app.use('/api', async (req, res) => {
     // For POST requests, we still need cookies for CSRF validation even for public endpoints
     const isPublicBookingPOST = isPublicBookingEndpoint && req.method === 'POST'
     
+    // Check if this is an analytics events endpoint (uses API key auth, not CSRF)
+    const isAnalyticsEventsEndpoint = req.path === '/analytics/events'
+    
     const options = {
       method: req.method,
           headers: {
@@ -374,10 +351,17 @@ app.use('/api', async (req, res) => {
           }
     }
     
+    // Add API key authentication for analytics events endpoint
+    if (isAnalyticsEventsEndpoint && process.env.ANALYTICS_API_KEY) {
+      options.headers['Authorization'] = `Bearer ${process.env.ANALYTICS_API_KEY}`
+      console.log('Using API key authentication for analytics events endpoint')
+    }
+    
     // Forward cookies for:
     // 1. Non-public endpoints (authentication required)
     // 2. Public booking POST endpoints (CSRF validation requires cookies)
-    if (!isPublicBookingEndpoint || isPublicBookingPOST) {
+    // 3. Skip for analytics events endpoint (uses API key auth instead)
+    if ((!isPublicBookingEndpoint || isPublicBookingPOST) && !isAnalyticsEventsEndpoint) {
       // Forward cookies from the original request (important for CSRF token validation)
       if (req.headers.cookie) {
         options.headers['Cookie'] = req.headers.cookie
@@ -393,23 +377,27 @@ app.use('/api', async (req, res) => {
           console.warn('No cookies available - this may cause CSRF validation to fail!')
         }
       }
+    } else if (isAnalyticsEventsEndpoint) {
+      // Analytics events endpoint - no cookies needed (uses API key auth)
+      console.log('Analytics events endpoint - skipping cookie forwarding (using API key auth)')
     } else {
       // Public booking GET endpoints - no cookies needed
       console.log('Public booking GET endpoint - skipping cookie forwarding')
     }
     
-    // Forward CSRF token if present (only for POST/PUT/DELETE, and not for public GET endpoints)
-    // Public booking GET endpoints don't need CSRF token
-    if (req.headers['x-csrf-token'] && (!isPublicBookingEndpoint || req.method !== 'GET')) {
+    // Forward CSRF token if present (only for POST/PUT/DELETE, and not for public GET endpoints or analytics events)
+    // Public booking GET endpoints and analytics events endpoint don't need CSRF token
+    if (req.headers['x-csrf-token'] && (!isPublicBookingEndpoint || req.method !== 'GET') && !isAnalyticsEventsEndpoint) {
       options.headers['X-CSRF-Token'] = req.headers['x-csrf-token']
       console.log('Including CSRF token in backend request:', req.headers['x-csrf-token'].substring(0, 20) + '...')
-    } else if (req.method !== 'GET' && !isPublicBookingEndpoint) {
+    } else if (req.method !== 'GET' && !isPublicBookingEndpoint && !isAnalyticsEventsEndpoint) {
       console.warn('CSRF token missing in request headers!')
     }
     
     console.log('Headers being sent to backend:', {
       'X-Tenant': options.headers['X-Tenant'],
       'X-CSRF-Token': options.headers['X-CSRF-Token'] ? (options.headers['X-CSRF-Token'].substring(0, 20) + '...') : 'missing',
+      'Authorization': options.headers['Authorization'] ? (options.headers['Authorization'].substring(0, 20) + '...') : 'missing',
       'Cookie': options.headers['Cookie'] ? (options.headers['Cookie'].substring(0, 50) + '...') : 'missing',
       'Content-Type': options.headers['Content-Type']
     })
