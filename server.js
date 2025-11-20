@@ -370,8 +370,24 @@ app.use('/api', async (req, res) => {
     // Add API key authentication for analytics events endpoint
     if (isAnalyticsEventsEndpoint) {
       if (process.env.ANALYTICS_API_KEY) {
-        options.headers['Authorization'] = `Bearer ${process.env.ANALYTICS_API_KEY}`
+        // Trim whitespace from API key (common issue with environment variables)
+        const apiKey = process.env.ANALYTICS_API_KEY.trim()
+        
+        // Validate API key format (should start with ek_live_ or ek_test_)
+        if (!apiKey.startsWith('ek_live_') && !apiKey.startsWith('ek_test_')) {
+          console.error('❌ [ANALYTICS] Invalid API key format!')
+          console.error('❌ [ANALYTICS] API key should start with "ek_live_" or "ek_test_"')
+          console.error('❌ [ANALYTICS] Current key prefix:', apiKey.substring(0, 10))
+        }
+        
+        options.headers['Authorization'] = `Bearer ${apiKey}`
         console.log('✅ [ANALYTICS] Using API key authentication for analytics events endpoint')
+        console.log('🔍 [ANALYTICS] API key format check:', {
+          startsWithEkLive: apiKey.startsWith('ek_live_'),
+          startsWithEkTest: apiKey.startsWith('ek_test_'),
+          keyLength: apiKey.length,
+          keyPrefix: apiKey.substring(0, 15) + '...'
+        })
       } else {
         console.error('❌ [ANALYTICS] ANALYTICS_API_KEY not set in environment variables!')
         console.error('❌ [ANALYTICS] Please set ANALYTICS_API_KEY in Render environment variables')
