@@ -165,6 +165,32 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 })
 
+// Geo analytics events proxy (requires API key)
+app.post('/api/analytics/events', async (req, res) => {
+  try {
+    const apiKey = process.env.ANALYTICS_API_KEY
+    if (!apiKey) {
+      console.error('ANALYTICS_API_KEY not configured')
+      return res.status(500).json({ success: false, error: 'Analytics API key not configured' })
+    }
+
+    const response = await fetch(`${BACKEND_URL}/api/analytics/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(req.body)
+    })
+
+    const data = await response.json()
+    return res.status(response.status).json(data)
+  } catch (error) {
+    console.error('Error forwarding analytics events:', error)
+    res.status(500).json({ success: false, error: 'Failed to forward analytics events' })
+  }
+})
+
 // Stripe webhook handler for payment events (must be BEFORE proxy route)
 // Note: This route must use express.raw() to get the raw body for signature verification
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {

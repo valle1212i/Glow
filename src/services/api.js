@@ -421,13 +421,54 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
 /**
  * Get or create session ID
  */
-const getSessionId = () => {
+export const getSessionId = () => {
   let sessionId = sessionStorage.getItem('glow_session_id')
   if (!sessionId) {
     sessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now()
     sessionStorage.setItem('glow_session_id', sessionId)
   }
   return sessionId
+}
+
+/**
+ * Track geo analytics event
+ * Requires consent and country code
+ */
+export const trackGeoEvent = async (eventData) => {
+  if (!eventData?.consent) {
+    console.warn('Geo event missing consent flag')
+    return { success: false, error: 'Consent required' }
+  }
+  if (!eventData.country) {
+    console.warn('Geo event missing country code')
+    return { success: false, error: 'Country code required' }
+  }
+
+  try {
+    const response = await fetch('/api/analytics/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ events: [eventData] })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.warn('Geo tracking failed:', response.status, errorData)
+      return {
+        success: false,
+        status: response.status,
+        error: errorData.message || 'Geo tracking failed'
+      }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Geo tracking error:', error)
+    return { success: false, error: error.message }
+  }
 }
 
 /**

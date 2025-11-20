@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import TopBanner from './components/TopBanner'
 import Navigation from './components/Navigation'
@@ -16,10 +16,12 @@ import Footer from './components/Footer'
 import Cart from './components/Cart'
 import { CartProvider } from './context/CartContext'
 import { trackEvent } from './services/api'
+import ConsentBanner from './components/ConsentBanner'
+import { hasAnalyticsConsent, trackGeoPageView } from './services/geo'
 import './App.css'
 
 // Component to track page views
-const PageTracker = () => {
+const PageTracker = ({ analyticsConsent }) => {
   const location = useLocation()
 
   useEffect(() => {
@@ -30,18 +32,38 @@ const PageTracker = () => {
     })
   }, [location])
 
+  useEffect(() => {
+    if (analyticsConsent) {
+      trackGeoPageView()
+    }
+  }, [analyticsConsent, location])
+
   return null
 }
 
 function App() {
+  const [analyticsConsent, setAnalyticsConsent] = useState(false)
+
+  useEffect(() => {
+    if (hasAnalyticsConsent()) {
+      setAnalyticsConsent(true)
+    }
+  }, [])
+
+  const handleConsentAccepted = async () => {
+    setAnalyticsConsent(true)
+    await trackGeoPageView()
+  }
+
   return (
     <CartProvider>
       <Router>
         <div className="App">
-          <PageTracker />
+          <PageTracker analyticsConsent={analyticsConsent} />
           <TopBanner />
           <Navigation />
           <Cart />
+          <ConsentBanner onAccept={handleConsentAccepted} />
           <Routes>
             <Route path="/" element={
               <>
