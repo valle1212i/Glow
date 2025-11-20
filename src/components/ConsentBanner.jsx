@@ -9,8 +9,18 @@ const ConsentBanner = ({ onAccept }) => {
     if (typeof window === 'undefined') return
     const consentGiven = hasAnalyticsConsent()
     const dismissed = hasDismissedConsent()
+    console.log('🔍 [CONSENT BANNER] Status:', {
+      consentGiven,
+      dismissed,
+      willShow: !consentGiven && !dismissed
+    })
     if (!consentGiven && !dismissed) {
       setVisible(true)
+      console.log('✅ [CONSENT BANNER] Banner is now visible')
+    } else {
+      console.log('ℹ️ [CONSENT BANNER] Banner hidden:', {
+        reason: consentGiven ? 'Consent already given' : 'Banner was dismissed'
+      })
     }
   }, [])
 
