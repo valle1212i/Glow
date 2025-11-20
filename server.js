@@ -329,6 +329,11 @@ app.use('/api', async (req, res) => {
     const url = `${BACKEND_URL}${backendPath}${queryString}`
     
     console.log(`Proxying ${req.method} ${url}`)
+    console.log('Request path info:', {
+      'req.path': req.path,
+      'req.url': req.url,
+      'req.originalUrl': req.originalUrl
+    })
     console.log('Request headers:', {
       'x-tenant': req.headers['x-tenant'],
       'x-csrf-token': req.headers['x-csrf-token'] ? 'present' : 'missing',
@@ -341,7 +346,18 @@ app.use('/api', async (req, res) => {
     const isPublicBookingPOST = isPublicBookingEndpoint && req.method === 'POST'
     
     // Check if this is an analytics events endpoint (uses API key auth, not CSRF)
+    // req.path is the path after the route prefix, so /api/analytics/events becomes /analytics/events
     const isAnalyticsEventsEndpoint = req.path === '/analytics/events'
+    
+    // Debug logging for analytics events endpoint
+    if (isAnalyticsEventsEndpoint) {
+      console.log('🔍 [ANALYTICS] Detected analytics events endpoint:', {
+        path: req.path,
+        method: req.method,
+        hasApiKey: !!process.env.ANALYTICS_API_KEY,
+        apiKeyPrefix: process.env.ANALYTICS_API_KEY ? process.env.ANALYTICS_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      })
+    }
     
     const options = {
       method: req.method,
@@ -352,9 +368,14 @@ app.use('/api', async (req, res) => {
     }
     
     // Add API key authentication for analytics events endpoint
-    if (isAnalyticsEventsEndpoint && process.env.ANALYTICS_API_KEY) {
-      options.headers['Authorization'] = `Bearer ${process.env.ANALYTICS_API_KEY}`
-      console.log('Using API key authentication for analytics events endpoint')
+    if (isAnalyticsEventsEndpoint) {
+      if (process.env.ANALYTICS_API_KEY) {
+        options.headers['Authorization'] = `Bearer ${process.env.ANALYTICS_API_KEY}`
+        console.log('✅ [ANALYTICS] Using API key authentication for analytics events endpoint')
+      } else {
+        console.error('❌ [ANALYTICS] ANALYTICS_API_KEY not set in environment variables!')
+        console.error('❌ [ANALYTICS] Please set ANALYTICS_API_KEY in Render environment variables')
+      }
     }
     
     // Forward cookies for:
@@ -379,7 +400,7 @@ app.use('/api', async (req, res) => {
       }
     } else if (isAnalyticsEventsEndpoint) {
       // Analytics events endpoint - no cookies needed (uses API key auth)
-      console.log('Analytics events endpoint - skipping cookie forwarding (using API key auth)')
+      console.log('✅ [ANALYTICS] Analytics events endpoint - skipping cookie forwarding (using API key auth)')
     } else {
       // Public booking GET endpoints - no cookies needed
       console.log('Public booking GET endpoint - skipping cookie forwarding')
