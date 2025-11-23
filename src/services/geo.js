@@ -3,7 +3,7 @@ import { trackGeoEvent, getSessionId } from './api'
 const CONSENT_STORAGE_KEY = 'analytics_consent'
 const CONSENT_DISMISSED_KEY = 'analytics_consent_dismissed'
 const GEO_CACHE_KEY = 'glow_geo_data'
-const GEO_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+const GEO_CACHE_TTL = 5 * 60 * 1000 // 5 minutes (reduced from 30 to better handle VPN location changes)
 
 export const hasAnalyticsConsent = () => {
   if (typeof window === 'undefined') return false
@@ -68,12 +68,18 @@ const getCachedGeoData = () => {
   return null
 }
 
-export const getGeoData = async () => {
+export const getGeoData = async (forceRefresh = false) => {
   if (typeof window === 'undefined') return null
 
-  const cached = getCachedGeoData()
-  if (cached) {
-    return cached
+  // If forcing refresh, clear cache first
+  if (forceRefresh) {
+    sessionStorage.removeItem(GEO_CACHE_KEY)
+  } else {
+    // Check cache first
+    const cached = getCachedGeoData()
+    if (cached) {
+      return cached
+    }
   }
 
   try {
@@ -101,13 +107,14 @@ export const getGeoData = async () => {
   }
 }
 
-export const trackGeoPageView = async () => {
+export const trackGeoPageView = async (forceRefresh = false) => {
   if (!hasAnalyticsConsent()) {
     console.log('Consent not granted, skipping geo tracking')
     return { success: false, consent: false }
   }
 
-  const geoData = await getGeoData()
+  // Pass forceRefresh to getGeoData to bypass cache if needed
+  const geoData = await getGeoData(forceRefresh)
   if (!geoData || !geoData.country) {
     console.warn('Geo data unavailable, skipping geo tracking')
     return { success: false, reason: 'geo_unavailable' }
