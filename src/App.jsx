@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
-import TopBanner from './components/TopBanner'
 import Navigation from './components/Navigation'
 import Hero from './components/Hero'
 import Products from './components/Products'
@@ -60,7 +59,6 @@ function App() {
       <Router>
         <div className="App">
           <PageTracker analyticsConsent={analyticsConsent} />
-          <TopBanner />
           <Navigation />
           <Cart />
           <ConsentBanner onAccept={handleConsentAccepted} />
