@@ -36,4 +36,3 @@ steps:
 
 images:
   - 'europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/glow-web:${COMMIT_SHA}'
-
