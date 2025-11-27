@@ -1,0 +1,39 @@
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/glow-web:${COMMIT_SHA}',
+        '.'
+      ]
+
+  # Push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'push',
+        'europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/glow-web:${COMMIT_SHA}'
+      ]
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run',
+        'deploy',
+        'glow-web',
+        '--image',
+        'europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/glow-web:${COMMIT_SHA}',
+        '--region=europe-north1',
+        '--platform=managed',
+        '--allow-unauthenticated',
+        '--service-account=source-run-sa@sigma-future-479409-h9.iam.gserviceaccount.com',
+        '--update-secrets=ANALYTICS_API_KEY=GLOW_ANALYTICS_API_KEY:latest,FRONTEND_API_KEY=GLOW_FRONTEND_API_KEY:latest,FRONTEND_SYNC_SECRET=GLOW_FRONTEND_SYNC_SECRET:latest,NEXT_PUBLIC_BASE_URL=GLOW_NEXT_PUBLIC_BASE_URL:latest,SOURCE_DATABASE_URL=GLOW_SOURCE_DATABASE_URL:latest,SOURCE_TENANT_ID=GLOW_SOURCE_TENANT_ID:latest,STRIPE_SECRET_KEY=GLOW_STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=GLOW_STRIPE_WEBHOOK_SECRET:latest'
+      ]
+
+images:
+  - 'europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/glow-web:${COMMIT_SHA}'
+
