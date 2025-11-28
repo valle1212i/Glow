@@ -23,6 +23,33 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 // Key: session identifier, Value: cookie string
 let backendSessionCookies = null
 
+// Rewrites backend Set-Cookie headers so the browser can store them on the Glow domain.
+const sanitizeCookieForClient = (cookieHeader) => {
+  if (!cookieHeader) return null
+
+  const parts = cookieHeader
+    .split(';')
+    .map(part => part.trim())
+    .filter(Boolean)
+
+  if (parts.length === 0) {
+    return null
+  }
+
+  const [nameValue, ...attributes] = parts
+
+  // Remove Domain attribute so cookie is scoped to the Glow host
+  const filteredAttrs = attributes.filter(attr => !attr.toLowerCase().startsWith('domain='))
+
+  // Ensure the cookie is sent for all routes
+  const hasPath = filteredAttrs.some(attr => attr.toLowerCase().startsWith('path='))
+  if (!hasPath) {
+    filteredAttrs.push('Path=/')
+  }
+
+  return [nameValue, ...filteredAttrs].join('; ')
+}
+
 // Middleware to parse JSON (except for webhooks which need raw body)
 app.use((req, res, next) => {
   if (req.path === '/api/webhooks/stripe') {
@@ -491,7 +518,9 @@ app.use('/api', async (req, res) => {
     
     if (setCookieHeaders.length > 0) {
       console.log('Backend is setting cookies:', setCookieHeaders.join(' | ').substring(0, 300) + '...')
-      
+
+      const clientCookies = []
+
       // Extract cookie name=value pairs from each Set-Cookie header
       const cookies = []
       for (const cookieHeader of setCookieHeaders) {
@@ -500,6 +529,15 @@ app.use('/api', async (req, res) => {
         if (match) {
           cookies.push(match[1])
         }
+        const sanitized = sanitizeCookieForClient(cookieHeader)
+        if (sanitized) {
+          clientCookies.push(sanitized)
+        }
+      }
+
+      if (clientCookies.length > 0) {
+        res.setHeader('Set-Cookie', clientCookies)
+        console.log('Forwarded cookies to client:', clientCookies.map(c => c.split(';')[0]).join(', '))
       }
       
       // Combine all cookies into a single Cookie header string
