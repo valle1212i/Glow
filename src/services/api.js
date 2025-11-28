@@ -596,7 +596,7 @@ export const createBooking = async (bookingData) => {
         'X-CSRF-Token': csrfToken,
         'X-Tenant': API_CONFIG.TENANT
       },
-      // No credentials needed for public endpoints
+      credentials: 'include', // Required for CSRF validation on POST requests
       body: JSON.stringify(payload)
     })
     
