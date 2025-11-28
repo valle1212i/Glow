@@ -5,7 +5,7 @@ export const API_CONFIG = {
   // In development, use full URL or VITE_API_URL
   BASE_URL: import.meta.env.PROD 
     ? '/api' // Use proxy in production
-    : (import.meta.env.VITE_API_URL || 'https://source-database.onrender.com'),
+    : (import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'),
   
   // Tenant identifier for Glow Hairdressing (must match exactly in customer portal)
   // ✅ Must be exactly 'glowhairdressing' (lowercase, no spaces) to match database

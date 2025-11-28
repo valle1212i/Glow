@@ -69,7 +69,7 @@ The backend needs to:
 
 From Render logs:
 ```
-Proxying GET https://source-database.onrender.com/api/system/booking/public/services?isActive=true
+Proxying GET https://source-database-809785351172.europe-north1.run.app/api/system/booking/public/services?isActive=true                        
 Request headers: {
   'x-tenant': 'glowhairdressing',
   'x-csrf-token': 'missing',

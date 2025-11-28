@@ -132,7 +132,7 @@ We're confirming the following on our end:
 If you need to test the endpoint, here's the exact format we expect:
 
 ```bash
-curl -X POST https://source-database.onrender.com/api/analytics/events \
+curl -X POST https://source-database-809785351172.europe-north1.run.app/api/analytics/events \
   -H "Content-Type: application/json" \
   -H "X-Tenant: glowhairdressing" \
   -H "Authorization: Bearer ek_live_..." \

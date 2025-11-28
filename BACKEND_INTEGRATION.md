@@ -19,7 +19,7 @@ Create a `.env` file in the root directory:
 ```bash
 # Backend API base URL
 # Note: Vite requires VITE_ prefix for environment variables exposed to client
-VITE_API_URL=https://source-database.onrender.com
+VITE_API_URL=https://source-database-809785351172.europe-north1.run.app
 ```
 
 ### API Configuration
@@ -27,7 +27,7 @@ VITE_API_URL=https://source-database.onrender.com
 The API configuration is located in `src/config/api.js`:
 
 - **Tenant**: `hairdresser` (hardcoded for Glow)
-- **Base URL**: Set via `VITE_API_URL` environment variable (or defaults to `https://source-database.onrender.com`)
+- **Base URL**: Set via `VITE_API_URL` environment variable (or defaults to `https://source-database-809785351172.europe-north1.run.app`)
 - **CSRF Protection**: Automatically handled via token fetching
 
 **Important**: Vite uses `import.meta.env` instead of `process.env` for environment variables. Only variables prefixed with `VITE_` are exposed to the client code.
@@ -165,7 +165,7 @@ Components handle errors by:
 
 To test the integration:
 
-1. Create a `.env` file in the root directory with `VITE_API_URL=https://source-database.onrender.com`
+1. Create a `.env` file in the root directory with `VITE_API_URL=https://source-database-809785351172.europe-north1.run.app`
 2. Start the development server: `npm run dev`
 3. Submit forms on the website
 4. Check browser console for API calls

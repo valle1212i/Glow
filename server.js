@@ -8,7 +8,7 @@ const __dirname = dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const BACKEND_URL = process.env.VITE_API_URL || 'https://source-database.onrender.com'
+const BACKEND_URL = process.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
 
 // Tenant identifier (must match exactly with customer portal database)
 // Used for abandoned cart tracking and multi-tenant isolation
@@ -571,7 +571,7 @@ app.use('/api', async (req, res) => {
       }
       
       // Note: We can't forward Set-Cookie headers to the client due to domain mismatch
-      // The backend sets cookies for source-database.onrender.com, but client is on glow-test.onrender.com
+      // The backend sets cookies for source-database-809785351172.europe-north1.run.app, but client is on glow-test.onrender.com
       // So we store them in the proxy and reuse them for backend requests
     }
     
