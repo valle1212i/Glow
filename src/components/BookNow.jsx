@@ -625,8 +625,9 @@ const BookNow = () => {
                 {loadingSlots ? (
                   <div className="loading-message">Loading available times...</div>
                 ) : availableTimeSlots.length === 0 ? (
-                  <div className="error-message" style={{ marginTop: '10px' }}>
-                    <span>No available time slots for this date. Please select another date.</span>
+                  <div className="fully-booked-message">
+                    <strong>⚠️ Denna dag är fullbokad</strong>
+                    <p>Välj ett annat datum för att fortsätta med din bokning.</p>
                   </div>
                 ) : (
                   <div className="time-slots-grid">
@@ -686,6 +687,14 @@ const BookNow = () => {
                     <div className="error-message">{error}</div>
                   )}
 
+                  {/* Disable submit button if day is fully booked */}
+                  {selectedDate && availableTimeSlots.length === 0 && !loadingSlots && (
+                    <div className="fully-booked-message" style={{ marginTop: '10px' }}>
+                      <strong>⚠️ Denna dag är fullbokad</strong>
+                      <p>Välj ett annat datum för att fortsätta med din bokning.</p>
+                    </div>
+                  )}
+
                   {(services.length === 0 || providers.length === 0) ? (
                     <div style={{ padding: '20px', background: 'var(--bg-light)', borderRadius: '5px', textAlign: 'center' }}>
                       <p style={{ marginBottom: '15px', color: 'var(--text-gray)' }}>
@@ -700,9 +709,9 @@ const BookNow = () => {
               <motion.button
                 type="submit"
                 className="submit-booking-btn"
-                      disabled={!selectedService || !selectedProvider || !selectedDate || !selectedTime || !formData.name || isProcessing}
-                      whileHover={{ scale: isProcessing ? 1 : 1.02 }}
-                      whileTap={{ scale: isProcessing ? 1 : 0.98 }}
+                      disabled={!selectedService || !selectedProvider || !selectedDate || !selectedTime || !formData.name || isProcessing || availableTimeSlots.length === 0}
+                      whileHover={{ scale: isProcessing || availableTimeSlots.length === 0 ? 1 : 1.02 }}
+                      whileTap={{ scale: isProcessing || availableTimeSlots.length === 0 ? 1 : 0.98 }}
               >
                       {isProcessing ? 'Processing...' : submitted ? 'Booking Confirmed!' : 'Confirm Booking'}
               </motion.button>

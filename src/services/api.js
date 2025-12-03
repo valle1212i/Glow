@@ -633,6 +633,7 @@ export const createBooking = async (bookingData) => {
 
 /**
  * Get bookings for a date range
+ * ✅ CRITICAL: Filters out canceled bookings (status: 'canceled')
  */
 export const getBookings = async (fromDate, toDate, providerId = null) => {
   try {
@@ -653,7 +654,12 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
     }
     
     const data = await response.json()
-    return { success: true, bookings: data.bookings || [] }
+    
+    // ✅ CRITICAL: Filter out canceled bookings from availability calculations
+    // Canceled bookings should not block time slots
+    const activeBookings = (data.bookings || []).filter(booking => booking.status !== 'canceled')
+    
+    return { success: true, bookings: activeBookings }
   } catch (error) {
     console.error('Error fetching bookings:', error)
     return { success: false, bookings: [], error: error.message }

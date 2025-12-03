@@ -245,6 +245,43 @@
   margin-bottom: 10px;
 }
 
+.fully-booked-message {
+  padding: 15px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.fully-booked-message strong {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.fully-booked-message p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #856404;
+}
+
+/* Calendar day styles for fully booked days (optional enhancement) */
+.calendar-day.fully-booked {
+  background-color: #f8d7da;
+  color: #721c24;
+  cursor: not-allowed;
+  opacity: 0.7;
+  border-color: #f5c6cb;
+}
+
+.calendar-day.fully-booked:hover {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
 @media (max-width: 992px) {
   .booking-container {
     grid-template-columns: 1fr;
