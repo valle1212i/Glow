@@ -662,7 +662,7 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
 
 /**
  * Get booking settings (including opening hours)
- * Tries public endpoint first, then authenticated endpoint, then uses defaults
+ * Uses public endpoint - no authentication required
  */
 export const getBookingSettings = async () => {
   const defaultSettings = {
@@ -673,55 +673,48 @@ export const getBookingSettings = async () => {
     }
   }
   
-  // Try public endpoint first (if it exists)
-  // Note: 404 errors in console are expected if this endpoint doesn't exist yet
   try {
-    const publicResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS_PUBLIC}`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS_PUBLIC}`, {
       headers: {
         'X-Tenant': API_CONFIG.TENANT
       }
+      // No credentials needed for public endpoints
     })
     
-    if (publicResponse.ok) {
-      const publicData = await publicResponse.json()
-      if (publicData.success && publicData.settings) {
-        return { success: true, settings: publicData.settings, usingDefaults: false }
+    if (!response.ok) {
+      // If public endpoint returns error, log and use defaults
+      if (response.status === 404) {
+        console.warn('⚠️ Public booking settings endpoint not found. Using default opening hours (09:00-17:00).')
+      } else {
+        console.warn(`⚠️ Failed to fetch booking settings (${response.status}). Using default opening hours (09:00-17:00).`)
       }
-    }
-  } catch (error) {
-    // Public endpoint doesn't exist (404) or failed - try authenticated endpoint
-    // This is expected and harmless
-  }
-  
-  // Try authenticated endpoint
-  // Note: 401 errors in console are expected for public booking forms (no user login)
-  try {
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS}`, {
-      credentials: 'include',
-      headers: {
-        'X-Tenant': API_CONFIG.TENANT
-      }
-    })
-    
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success && data.settings) {
-        return { success: true, settings: data.settings, usingDefaults: false }
+      return { 
+        success: true, 
+        settings: defaultSettings,
+        usingDefaults: true
       }
     }
     
-    // If 401 or other error, use defaults (this is expected for public forms)
-    // The 401 error in browser console is harmless - we're using defaults
+    const data = await response.json()
+    if (data.success && data.settings) {
+      console.log('✅ Fetched booking settings from public endpoint')
+      return { success: true, settings: data.settings, usingDefaults: false }
+    }
+    
+    // If response doesn't have expected structure, use defaults
+    return { 
+      success: true, 
+      settings: defaultSettings,
+      usingDefaults: true
+    }
   } catch (error) {
     // Network error or other issue - use defaults
-  }
-  
-  // Fall back to defaults (this is expected behavior for public booking forms)
-  // The form will work with default opening hours (09:00-17:00)
-  return { 
-    success: true, 
-    settings: defaultSettings,
-    usingDefaults: true
+    console.warn('⚠️ Error fetching booking settings:', error.message)
+    return { 
+      success: true, 
+      settings: defaultSettings,
+      usingDefaults: true
+    }
   }
 }
 
