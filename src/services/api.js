@@ -662,9 +662,36 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
 
 /**
  * Get booking settings (including opening hours)
- * Note: This endpoint may require authentication. If it fails, we'll use defaults.
+ * Tries public endpoint first, then authenticated endpoint, then uses defaults
  */
 export const getBookingSettings = async () => {
+  const defaultSettings = {
+    calendarBehavior: {
+      startTime: '09:00',
+      endTime: '17:00',
+      timeSlotInterval: 30
+    }
+  }
+  
+  // Try public endpoint first (if it exists)
+  try {
+    const publicResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS_PUBLIC}`, {
+      headers: {
+        'X-Tenant': API_CONFIG.TENANT
+      }
+    })
+    
+    if (publicResponse.ok) {
+      const publicData = await publicResponse.json()
+      if (publicData.success && publicData.settings) {
+        return { success: true, settings: publicData.settings, usingDefaults: false }
+      }
+    }
+  } catch (error) {
+    // Public endpoint doesn't exist or failed - try authenticated endpoint
+  }
+  
+  // Try authenticated endpoint
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS}`, {
       credentials: 'include',
@@ -673,70 +700,31 @@ export const getBookingSettings = async () => {
       }
     })
     
-    // If 401 (Unauthorized), settings endpoint requires auth - use defaults
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.settings) {
+        return { success: true, settings: data.settings, usingDefaults: false }
+      }
+    }
+    
+    // If 401 or other error, use defaults (don't log as error - this is expected for public forms)
     if (response.status === 401) {
-      console.warn('⚠️ Booking settings endpoint requires authentication. Using default opening hours (09:00-17:00).')
+      // Silently use defaults - this is expected when settings endpoint requires auth
       return { 
         success: true, 
-        settings: {
-          calendarBehavior: {
-            startTime: '09:00',
-            endTime: '17:00',
-            timeSlotInterval: 30
-          }
-        },
+        settings: defaultSettings,
         usingDefaults: true
       }
     }
-    
-    if (!response.ok) {
-      // For other errors, also use defaults
-      console.warn(`⚠️ Failed to fetch settings (${response.status}). Using default opening hours.`)
-      return { 
-        success: true, 
-        settings: {
-          calendarBehavior: {
-            startTime: '09:00',
-            endTime: '17:00',
-            timeSlotInterval: 30
-          }
-        },
-        usingDefaults: true
-      }
-    }
-    
-    const data = await response.json()
-    if (!data.success) {
-      // Use defaults if API returns error
-      console.warn('⚠️ Settings API returned error. Using default opening hours.')
-      return { 
-        success: true, 
-        settings: {
-          calendarBehavior: {
-            startTime: '09:00',
-            endTime: '17:00',
-            timeSlotInterval: 30
-          }
-        },
-        usingDefaults: true
-      }
-    }
-    
-    return { success: true, settings: data.settings || null, usingDefaults: false }
   } catch (error) {
-    console.warn('⚠️ Error fetching booking settings. Using default opening hours:', error.message)
-    // Return defaults on error so booking form still works
-    return { 
-      success: true, 
-      settings: {
-        calendarBehavior: {
-          startTime: '09:00',
-          endTime: '17:00',
-          timeSlotInterval: 30
-        }
-      },
-      usingDefaults: true
-    }
+    // Network error or other issue - use defaults
+  }
+  
+  // Fall back to defaults (no console warning - this is expected behavior)
+  return { 
+    success: true, 
+    settings: defaultSettings,
+    usingDefaults: true
   }
 }
 

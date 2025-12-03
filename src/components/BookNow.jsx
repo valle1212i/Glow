@@ -113,16 +113,11 @@ const BookNow = () => {
           // ✅ CRITICAL: Store settings for opening hours
           if (settingsResult.success && settingsResult.settings) {
             setBookingSettings(settingsResult.settings)
-            if (isInitialLoad) {
-              if (settingsResult.usingDefaults) {
-                console.log('✅ Using default opening hours (09:00-17:00) - settings endpoint requires authentication')
-              } else {
-                console.log('✅ Booking settings loaded (opening hours configured)')
-              }
+            if (isInitialLoad && !settingsResult.usingDefaults) {
+              console.log('✅ Booking settings loaded (opening hours configured)')
             }
           } else if (isInitialLoad) {
             // Fallback to defaults if settings fetch completely fails
-            console.warn('⚠️ No booking settings found - using default opening hours (09:00-17:00)')
             setBookingSettings({
               calendarBehavior: {
                 startTime: '09:00',
