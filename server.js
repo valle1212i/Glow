@@ -333,9 +333,23 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   res.json({ received: true })
 })
 
+// CORS headers middleware (must be before routes that need CORS)
+app.use('/api', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-Tenant, X-CSRF-Token, Authorization')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
+  next()
+})
+
 // Public endpoint for booking settings (fetches from backend and serves publicly)
 // This allows the public booking form to access opening hours without authentication
 // The server authenticates using FRONTEND_API_KEY to fetch real settings from backend
+// IMPORTANT: This route must be defined BEFORE the general proxy route below
 app.get('/api/system/booking/public/settings', async (req, res) => {
   console.log('🔍 [BOOKING SETTINGS] Public settings endpoint hit')
   try {
@@ -408,19 +422,6 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
       usingDefaults: true
     })
   }
-})
-
-// CORS headers for API proxy
-app.use('/api', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Content-Type, X-Tenant, X-CSRF-Token, Authorization')
-  res.header('Access-Control-Allow-Credentials', 'true')
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200)
-  }
-  next()
 })
 
 // Proxy API requests to backend (catches all /api routes not handled above)
