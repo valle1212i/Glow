@@ -111,12 +111,15 @@ const BookNow = () => {
           }
           
           // ✅ CRITICAL: Store settings for opening hours
+          // Always set settings (either from API or defaults)
           if (settingsResult.success && settingsResult.settings) {
             setBookingSettings(settingsResult.settings)
             if (isInitialLoad && !settingsResult.usingDefaults) {
               console.log('✅ Booking settings loaded (opening hours configured)')
+            } else if (isInitialLoad && settingsResult.usingDefaults) {
+              // Silently using defaults - this is expected for public forms
             }
-          } else if (isInitialLoad) {
+          } else {
             // Fallback to defaults if settings fetch completely fails
             setBookingSettings({
               calendarBehavior: {

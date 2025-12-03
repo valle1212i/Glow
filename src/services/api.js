@@ -674,6 +674,7 @@ export const getBookingSettings = async () => {
   }
   
   // Try public endpoint first (if it exists)
+  // Note: 404 errors in console are expected if this endpoint doesn't exist yet
   try {
     const publicResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS_PUBLIC}`, {
       headers: {
@@ -688,10 +689,12 @@ export const getBookingSettings = async () => {
       }
     }
   } catch (error) {
-    // Public endpoint doesn't exist or failed - try authenticated endpoint
+    // Public endpoint doesn't exist (404) or failed - try authenticated endpoint
+    // This is expected and harmless
   }
   
   // Try authenticated endpoint
+  // Note: 401 errors in console are expected for public booking forms (no user login)
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS}`, {
       credentials: 'include',
@@ -707,20 +710,14 @@ export const getBookingSettings = async () => {
       }
     }
     
-    // If 401 or other error, use defaults (don't log as error - this is expected for public forms)
-    if (response.status === 401) {
-      // Silently use defaults - this is expected when settings endpoint requires auth
-      return { 
-        success: true, 
-        settings: defaultSettings,
-        usingDefaults: true
-      }
-    }
+    // If 401 or other error, use defaults (this is expected for public forms)
+    // The 401 error in browser console is harmless - we're using defaults
   } catch (error) {
     // Network error or other issue - use defaults
   }
   
-  // Fall back to defaults (no console warning - this is expected behavior)
+  // Fall back to defaults (this is expected behavior for public booking forms)
+  // The form will work with default opening hours (09:00-17:00)
   return { 
     success: true, 
     settings: defaultSettings,
