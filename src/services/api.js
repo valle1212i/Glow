@@ -660,3 +660,32 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
   }
 }
 
+/**
+ * Get booking settings (including opening hours)
+ * Requires authentication
+ */
+export const getBookingSettings = async () => {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_SETTINGS}`, {
+      credentials: 'include',
+      headers: {
+        'X-Tenant': API_CONFIG.TENANT
+      }
+    })
+    
+    if (!response.ok) {
+      return { success: false, settings: null, error: `Failed to fetch settings: ${response.status}` }
+    }
+    
+    const data = await response.json()
+    if (!data.success) {
+      return { success: false, settings: null, error: data.message || 'Failed to fetch settings' }
+    }
+    
+    return { success: true, settings: data.settings || null }
+  } catch (error) {
+    console.error('Error fetching booking settings:', error)
+    return { success: false, settings: null, error: error.message }
+  }
+}
+

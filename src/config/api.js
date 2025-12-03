@@ -36,7 +36,8 @@ export const API_CONFIG = {
     // Booking System (Public Endpoints - no authentication required)
     BOOKING_SERVICES: import.meta.env.PROD ? '/system/booking/public/services' : '/api/system/booking/public/services',
     BOOKING_PROVIDERS: import.meta.env.PROD ? '/system/booking/public/providers' : '/api/system/booking/public/providers',
-    BOOKING_BOOKINGS: import.meta.env.PROD ? '/system/booking/public/bookings' : '/api/system/booking/public/bookings'
+    BOOKING_BOOKINGS: import.meta.env.PROD ? '/system/booking/public/bookings' : '/api/system/booking/public/bookings',
+    BOOKING_SETTINGS: import.meta.env.PROD ? '/system/booking/settings' : '/api/system/booking/settings'
     
     // Note: Stripe checkout is handled directly by Express server at /api/create-checkout-session
     // No endpoint config needed as it's called directly

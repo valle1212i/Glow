@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { getBookingServices, getBookingProviders, createBooking } from '../services/api'
+import { getBookingServices, getBookingProviders, createBooking, getBookings, getBookingSettings } from '../services/api'
 import './BookNow.css'
 
 const BookNow = () => {
@@ -19,6 +19,9 @@ const BookNow = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
+  const [bookingSettings, setBookingSettings] = useState(null)
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
   
   // Use refs to store current values for comparison without causing re-renders
   const servicesRef = useRef([])
@@ -62,12 +65,13 @@ const BookNow = () => {
       return false
     }
 
-    // Load and refresh services and providers
+    // Load and refresh services, providers, and settings
     const refreshServicesAndProviders = async (isInitialLoad = false) => {
       try {
-        const [servicesResult, providersResult] = await Promise.all([
+        const [servicesResult, providersResult, settingsResult] = await Promise.all([
           getBookingServices(),
-          getBookingProviders()
+          getBookingProviders(),
+          getBookingSettings()
         ])
         
         // Note: Public endpoints no longer require authentication
@@ -106,12 +110,27 @@ const BookNow = () => {
             }
           }
           
+          // ✅ CRITICAL: Store settings for opening hours
+          if (settingsResult.success && settingsResult.settings) {
+            setBookingSettings(settingsResult.settings)
+            if (isInitialLoad) {
+              console.log('✅ Booking settings loaded (opening hours configured)')
+            }
+          } else if (isInitialLoad) {
+            console.warn('⚠️ No booking settings found - time slots may not be available')
+          }
+          
           if (isInitialLoad) {
             if (newServices.length === 0 && newProviders.length === 0) {
               console.warn('⚠️ No services or providers found. Please configure them in the customer portal.')
             } else {
               console.log(`✅ Booking system initialized: ${newServices.length} services, ${newProviders.length} providers`)
             }
+          }
+          
+          // If date is already selected, refresh available time slots with new settings
+          if (selectedDate && selectedService && selectedProvider) {
+            checkAvailability()
           }
         }
       } catch (error) {
@@ -129,10 +148,10 @@ const BookNow = () => {
     // Initial load
     refreshServicesAndProviders(true)
     
-    // Set up auto-refresh every 30 seconds
+    // Set up auto-refresh every 5 minutes (same as documentation recommendation)
     const refreshInterval = setInterval(() => {
       refreshServicesAndProviders(false)
-    }, 30000) // 30 seconds
+    }, 5 * 60 * 1000) // 5 minutes
     
     // Refresh when user returns to the page
     const handleVisibilityChange = () => {
@@ -157,12 +176,158 @@ const BookNow = () => {
     }
   }, [])
 
-  // Generate available time slots
-  const timeSlots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
-  ]
+  // Generate time slots based on opening hours and existing bookings
+  const generateTimeSlots = (date, durationMin, existingBookings, settings = null) => {
+    const slots = []
+    
+    // ✅ CRITICAL: Get day of week for day-specific opening hours
+    const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()]
+    const dayOpeningHours = settings?.openingHours?.[dayOfWeek]
+    
+    // ✅ CRITICAL: Use day-specific opening hours first, then fallback to calendarBehavior
+    let startHour = null
+    let endHour = null
+    
+    if (dayOpeningHours && dayOpeningHours.isOpen !== false && dayOpeningHours.start && dayOpeningHours.end) {
+      // ✅ PRIORITY 1: Use day-specific opening hours (e.g., Friday 14:00-15:00)
+      const [startHours, startMinutes] = dayOpeningHours.start.split(':').map(Number)
+      const [endHours, endMinutes] = dayOpeningHours.end.split(':').map(Number)
+      
+      startHour = startHours
+      endHour = endMinutes > 0 ? endHours + 1 : endHours + 1
+    } else if (dayOpeningHours?.isOpen === false) {
+      // Business is closed on this day
+      return []
+    } else if (settings?.calendarBehavior?.startTime && settings?.calendarBehavior?.endTime) {
+      // ✅ PRIORITY 2: Fallback to general calendarBehavior times
+      const [startHours] = settings.calendarBehavior.startTime.split(':').map(Number)
+      const [endHours, endMinutes] = settings.calendarBehavior.endTime.split(':').map(Number)
+      
+      startHour = startHours
+      endHour = endMinutes > 0 ? endHours + 1 : endHours + 1
+    }
+    
+    // ✅ CRITICAL: If no settings, return empty (don't show any slots)
+    if (startHour === null || endHour === null) {
+      console.warn('⚠️ No opening hours configured - cannot generate time slots')
+      return []
+    }
+    
+    const slotInterval = settings?.calendarBehavior?.timeSlotInterval || 30
+    
+    // ✅ CRITICAL: Get actual closing time to filter slots that start at or after closing
+    let actualEndHour = null
+    let actualEndMinutes = null
+    if (dayOpeningHours && dayOpeningHours.isOpen !== false && dayOpeningHours.end) {
+      const [endH, endM] = dayOpeningHours.end.split(':').map(Number)
+      actualEndHour = endH
+      actualEndMinutes = endM
+    } else if (settings?.calendarBehavior?.endTime) {
+      const [endH, endM] = settings.calendarBehavior.endTime.split(':').map(Number)
+      actualEndHour = endH
+      actualEndMinutes = endM
+    }
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += slotInterval) {
+        const slotStart = new Date(date)
+        slotStart.setHours(hour, minute, 0, 0)
+        
+        // ✅ CRITICAL: Skip slots that start at or after the closing time
+        if (actualEndHour !== null && actualEndMinutes !== null) {
+          const slotStartMinutes = hour * 60 + minute
+          const closingMinutes = actualEndHour * 60 + actualEndMinutes
+          
+          if (slotStartMinutes >= closingMinutes) {
+            continue
+          }
+        }
+        
+        const slotEnd = new Date(slotStart)
+        slotEnd.setMinutes(slotEnd.getMinutes() + durationMin)
+        
+        // ✅ CRITICAL: Also check that the slot doesn't extend beyond closing time
+        if (actualEndHour !== null && actualEndMinutes !== null) {
+          const slotEndMinutes = slotEnd.getHours() * 60 + slotEnd.getMinutes()
+          const closingMinutes = actualEndHour * 60 + actualEndMinutes
+          
+          if (slotEndMinutes > closingMinutes) {
+            continue
+          }
+        }
+        
+        // Check for conflicts with existing bookings
+        const hasConflict = existingBookings.some(booking => {
+          const bookingStart = new Date(booking.start)
+          const bookingEnd = new Date(booking.end)
+          return (slotStart < bookingEnd && slotEnd > bookingStart)
+        })
+        
+        if (!hasConflict) {
+          slots.push({
+            start: slotStart,
+            end: slotEnd,
+            display: slotStart.toLocaleTimeString('sv-SE', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            value: slotStart.toTimeString().slice(0, 5) // HH:mm format
+          })
+        }
+      }
+    }
+    
+    return slots
+  }
+  
+  // Check availability when service, provider, or date changes
+  const checkAvailability = useCallback(async () => {
+    if (!selectedDate || !selectedService || !selectedProvider || !bookingSettings) {
+      setAvailableTimeSlots([])
+      return
+    }
+    
+    setLoadingSlots(true)
+    
+    try {
+      const service = services.find(s => s._id === selectedService)
+      if (!service) {
+        setAvailableTimeSlots([])
+        setLoadingSlots(false)
+        return
+      }
+      
+      const durationMin = service.durationMin || 60
+      const date = new Date(selectedDate)
+      
+      // Get bookings for the selected day
+      const dayStart = new Date(date)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(date)
+      dayEnd.setHours(23, 59, 59, 999)
+      
+      const bookingsResult = await getBookings(dayStart, dayEnd, selectedProvider)
+      const existingBookings = bookingsResult.success ? (bookingsResult.bookings || []) : []
+      
+      // Generate available slots using settings
+      const slots = generateTimeSlots(date, durationMin, existingBookings, bookingSettings)
+      setAvailableTimeSlots(slots)
+    } catch (error) {
+      console.error('Error checking availability:', error)
+      setAvailableTimeSlots([])
+    } finally {
+      setLoadingSlots(false)
+    }
+  }, [selectedDate, selectedService, selectedProvider, bookingSettings, services])
+  
+  // Check availability when service, provider, date, or settings change
+  useEffect(() => {
+    if (selectedDate && selectedService && selectedProvider && bookingSettings && services.length > 0) {
+      checkAvailability()
+    } else {
+      setAvailableTimeSlots([])
+    }
+  }, [selectedDate, selectedService, selectedProvider, bookingSettings, services, checkAvailability])
 
   // Get duration from selected service
   const getSelectedServiceDuration = () => {
@@ -218,6 +383,7 @@ const BookNow = () => {
       const date = new Date(currentYear, currentMonth, day)
       setSelectedDate(date)
       setSelectedTime('') // Reset time when date changes
+      // Availability will be checked automatically via useEffect
     }
   }
 
@@ -446,18 +612,30 @@ const BookNow = () => {
             {selectedDate && (
               <div className="time-selection">
                 <h3>Select Time</h3>
-                <div className="time-slots-grid">
-                  {timeSlots.map(time => (
-                    <button
-                      key={time}
-                            type="button"
-                      className={`time-slot ${selectedTime === time ? 'selected' : ''}`}
-                      onClick={() => setSelectedTime(time)}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
+                {loadingSlots ? (
+                  <div className="loading-message">Loading available times...</div>
+                ) : availableTimeSlots.length === 0 ? (
+                  <div className="error-message" style={{ marginTop: '10px' }}>
+                    {!bookingSettings ? (
+                      <span>Opening hours not configured. Please contact us directly.</span>
+                    ) : (
+                      <span>No available time slots for this date. Please select another date.</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="time-slots-grid">
+                    {availableTimeSlots.map((slot, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`time-slot ${selectedTime === slot.value ? 'selected' : ''}`}
+                        onClick={() => setSelectedTime(slot.value)}
+                      >
+                        {slot.display}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
