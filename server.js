@@ -337,6 +337,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 // This allows the public booking form to access opening hours without authentication
 // The server authenticates using FRONTEND_API_KEY to fetch real settings from backend
 app.get('/api/system/booking/public/settings', async (req, res) => {
+  console.log('🔍 [BOOKING SETTINGS] Public settings endpoint hit')
   try {
     const settingsUrl = `${BACKEND_URL}/api/system/booking/settings`
     const headers = {
@@ -344,20 +345,32 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
       'X-Tenant': TENANT
     }
     
-    // Try to use FRONTEND_API_KEY for server-side authentication
+    // Try multiple authentication methods
+    // Method 1: Try FRONTEND_API_KEY
     if (process.env.FRONTEND_API_KEY) {
       headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
+      console.log('🔍 [BOOKING SETTINGS] Using FRONTEND_API_KEY for authentication')
     }
     
+    // Method 2: Try using stored backend session cookies if available
+    if (backendSessionCookies) {
+      headers['Cookie'] = backendSessionCookies
+      console.log('🔍 [BOOKING SETTINGS] Also including session cookies')
+    }
+    
+    console.log(`🔍 [BOOKING SETTINGS] Fetching from: ${settingsUrl}`)
     const response = await fetch(settingsUrl, {
       headers: headers
     })
     
+    console.log(`🔍 [BOOKING SETTINGS] Backend response: ${response.status} ${response.statusText}`)
+    
     if (response.ok) {
       const data = await response.json()
+      console.log('🔍 [BOOKING SETTINGS] Response data:', JSON.stringify(data).substring(0, 200))
       if (data.success && data.settings) {
         // Return real settings from backend
-        console.log('✅ Fetched booking settings from backend (using server-side auth)')
+        console.log('✅ [BOOKING SETTINGS] Fetched booking settings from backend (using server-side auth)')
         return res.json({
           success: true,
           settings: data.settings
@@ -367,7 +380,8 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
     
     // If backend requires auth or returns error, return default settings
     // This allows the booking form to work with default hours
-    console.log(`⚠️ Could not fetch booking settings from backend (${response.status}). Using defaults.`)
+    const errorText = await response.text().catch(() => '')
+    console.log(`⚠️ [BOOKING SETTINGS] Could not fetch booking settings from backend (${response.status}). Using defaults. Error: ${errorText.substring(0, 100)}`)
     res.json({
       success: true,
       settings: {
@@ -380,7 +394,7 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
       usingDefaults: true
     })
   } catch (error) {
-    console.error('Error fetching booking settings:', error)
+    console.error('❌ [BOOKING SETTINGS] Error fetching booking settings:', error)
     // Return defaults on error
     res.json({
       success: true,
