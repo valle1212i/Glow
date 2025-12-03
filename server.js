@@ -333,6 +333,69 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   res.json({ received: true })
 })
 
+// Public endpoint for booking settings (fetches from backend and serves publicly)
+// This allows the public booking form to access opening hours without authentication
+// The server authenticates using FRONTEND_API_KEY to fetch real settings from backend
+app.get('/api/system/booking/public/settings', async (req, res) => {
+  try {
+    const settingsUrl = `${BACKEND_URL}/api/system/booking/settings`
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Tenant': TENANT
+    }
+    
+    // Try to use FRONTEND_API_KEY for server-side authentication
+    if (process.env.FRONTEND_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
+    }
+    
+    const response = await fetch(settingsUrl, {
+      headers: headers
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.settings) {
+        // Return real settings from backend
+        console.log('✅ Fetched booking settings from backend (using server-side auth)')
+        return res.json({
+          success: true,
+          settings: data.settings
+        })
+      }
+    }
+    
+    // If backend requires auth or returns error, return default settings
+    // This allows the booking form to work with default hours
+    console.log(`⚠️ Could not fetch booking settings from backend (${response.status}). Using defaults.`)
+    res.json({
+      success: true,
+      settings: {
+        calendarBehavior: {
+          startTime: '09:00',
+          endTime: '17:00',
+          timeSlotInterval: 30
+        }
+      },
+      usingDefaults: true
+    })
+  } catch (error) {
+    console.error('Error fetching booking settings:', error)
+    // Return defaults on error
+    res.json({
+      success: true,
+      settings: {
+        calendarBehavior: {
+          startTime: '09:00',
+          endTime: '17:00',
+          timeSlotInterval: 30
+        }
+      },
+      usingDefaults: true
+    })
+  }
+})
+
 // CORS headers for API proxy
 app.use('/api', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
