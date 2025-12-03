@@ -358,7 +358,26 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
   try {
     const settingsUrl = `${BACKEND_URL}/api/system/booking/settings`
     
-    // Step 1: Establish a session if we don't have one
+    // The backend settings endpoint requires a logged-in user session
+    // We'll try multiple authentication methods, but if none work, we'll use defaults
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Tenant': TENANT
+    }
+    
+    // Method 1: Try FRONTEND_SYNC_SECRET (if available, might be used for server-to-server auth)
+    if (process.env.FRONTEND_SYNC_SECRET) {
+      headers['X-Sync-Secret'] = process.env.FRONTEND_SYNC_SECRET.trim()
+      console.log('🔍 [BOOKING SETTINGS] Trying FRONTEND_SYNC_SECRET')
+    }
+    
+    // Method 2: Try FRONTEND_API_KEY
+    if (process.env.FRONTEND_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
+      console.log('🔍 [BOOKING SETTINGS] Also trying FRONTEND_API_KEY')
+    }
+    
+    // Method 3: Try to establish and use session cookies
     if (!serverBookingSessionCookies) {
       console.log('🔍 [BOOKING SETTINGS] Establishing server session with backend...')
       try {
@@ -391,21 +410,9 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
       }
     }
     
-    // Step 2: Fetch settings using session cookies
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-Tenant': TENANT
-    }
-    
     if (serverBookingSessionCookies) {
       headers['Cookie'] = serverBookingSessionCookies
       console.log('🔍 [BOOKING SETTINGS] Using server session cookies')
-    }
-    
-    // Also try API key as fallback
-    if (process.env.FRONTEND_API_KEY) {
-      headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
-      console.log('🔍 [BOOKING SETTINGS] Also trying FRONTEND_API_KEY')
     }
     
     console.log(`🔍 [BOOKING SETTINGS] Fetching from: ${settingsUrl}`)
