@@ -346,30 +346,66 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
+// Store server-side session for booking settings (established once, reused)
+let serverBookingSessionCookies = null
+
 // Public endpoint for booking settings (fetches from backend and serves publicly)
 // This allows the public booking form to access opening hours without authentication
-// The server authenticates using FRONTEND_API_KEY to fetch real settings from backend
+// The server establishes a session with the backend to fetch real settings
 // IMPORTANT: This route must be defined BEFORE the general proxy route below
 app.get('/api/system/booking/public/settings', async (req, res) => {
   console.log('🔍 [BOOKING SETTINGS] Public settings endpoint hit')
   try {
     const settingsUrl = `${BACKEND_URL}/api/system/booking/settings`
+    
+    // Step 1: Establish a session if we don't have one
+    if (!serverBookingSessionCookies) {
+      console.log('🔍 [BOOKING SETTINGS] Establishing server session with backend...')
+      try {
+        // Get CSRF token to establish session (this sets cookies)
+        const csrfResponse = await fetch(`${BACKEND_URL}/api/auth/csrf`, {
+          headers: {
+            'X-Tenant': TENANT
+          }
+        })
+        
+        // Extract cookies from response
+        const setCookieHeaders = csrfResponse.headers.get('set-cookie')
+        if (setCookieHeaders) {
+          // Extract cookie name=value pairs
+          const cookies = []
+          const cookieArray = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders]
+          for (const cookieHeader of cookieArray) {
+            const match = cookieHeader.match(/([^=]+=[^;]+)/)
+            if (match) {
+              cookies.push(match[1])
+            }
+          }
+          if (cookies.length > 0) {
+            serverBookingSessionCookies = cookies.join('; ')
+            console.log('✅ [BOOKING SETTINGS] Server session established')
+          }
+        }
+      } catch (sessionError) {
+        console.warn('⚠️ [BOOKING SETTINGS] Could not establish session:', sessionError.message)
+      }
+    }
+    
+    // Step 2: Fetch settings using session cookies
     const headers = {
       'Content-Type': 'application/json',
       'X-Tenant': TENANT
     }
     
-    // Try multiple authentication methods
-    // Method 1: Try FRONTEND_API_KEY
-    if (process.env.FRONTEND_API_KEY) {
-      headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
-      console.log('🔍 [BOOKING SETTINGS] Using FRONTEND_API_KEY for authentication')
+    if (serverBookingSessionCookies) {
+      headers['Cookie'] = serverBookingSessionCookies
+      console.log('🔍 [BOOKING SETTINGS] Using server session cookies')
     }
     
-    // Method 2: Try using stored backend session cookies if available
-    if (backendSessionCookies) {
-      headers['Cookie'] = backendSessionCookies
-      console.log('🔍 [BOOKING SETTINGS] Also including session cookies')
+    // Also try API key as fallback
+    if (process.env.FRONTEND_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.FRONTEND_API_KEY.trim()}`
+      console.log('🔍 [BOOKING SETTINGS] Also trying FRONTEND_API_KEY')
     }
     
     console.log(`🔍 [BOOKING SETTINGS] Fetching from: ${settingsUrl}`)
@@ -379,12 +415,28 @@ app.get('/api/system/booking/public/settings', async (req, res) => {
     
     console.log(`🔍 [BOOKING SETTINGS] Backend response: ${response.status} ${response.statusText}`)
     
+    // Update session cookies if backend sets new ones
+    const newSetCookie = response.headers.get('set-cookie')
+    if (newSetCookie && serverBookingSessionCookies) {
+      const cookies = []
+      const cookieArray = Array.isArray(newSetCookie) ? newSetCookie : [newSetCookie]
+      for (const cookieHeader of cookieArray) {
+        const match = cookieHeader.match(/([^=]+=[^;]+)/)
+        if (match) {
+          cookies.push(match[1])
+        }
+      }
+      if (cookies.length > 0) {
+        serverBookingSessionCookies = cookies.join('; ')
+      }
+    }
+    
     if (response.ok) {
       const data = await response.json()
       console.log('🔍 [BOOKING SETTINGS] Response data:', JSON.stringify(data).substring(0, 200))
       if (data.success && data.settings) {
         // Return real settings from backend
-        console.log('✅ [BOOKING SETTINGS] Fetched booking settings from backend (using server-side auth)')
+        console.log('✅ [BOOKING SETTINGS] Fetched booking settings from backend (using server session)')
         return res.json({
           success: true,
           settings: data.settings
