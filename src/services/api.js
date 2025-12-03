@@ -662,7 +662,7 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
 
 /**
  * Get booking settings (including opening hours)
- * Requires authentication
+ * Note: This endpoint may require authentication. If it fails, we'll use defaults.
  */
 export const getBookingSettings = async () => {
   try {
@@ -673,19 +673,70 @@ export const getBookingSettings = async () => {
       }
     })
     
+    // If 401 (Unauthorized), settings endpoint requires auth - use defaults
+    if (response.status === 401) {
+      console.warn('⚠️ Booking settings endpoint requires authentication. Using default opening hours (09:00-17:00).')
+      return { 
+        success: true, 
+        settings: {
+          calendarBehavior: {
+            startTime: '09:00',
+            endTime: '17:00',
+            timeSlotInterval: 30
+          }
+        },
+        usingDefaults: true
+      }
+    }
+    
     if (!response.ok) {
-      return { success: false, settings: null, error: `Failed to fetch settings: ${response.status}` }
+      // For other errors, also use defaults
+      console.warn(`⚠️ Failed to fetch settings (${response.status}). Using default opening hours.`)
+      return { 
+        success: true, 
+        settings: {
+          calendarBehavior: {
+            startTime: '09:00',
+            endTime: '17:00',
+            timeSlotInterval: 30
+          }
+        },
+        usingDefaults: true
+      }
     }
     
     const data = await response.json()
     if (!data.success) {
-      return { success: false, settings: null, error: data.message || 'Failed to fetch settings' }
+      // Use defaults if API returns error
+      console.warn('⚠️ Settings API returned error. Using default opening hours.')
+      return { 
+        success: true, 
+        settings: {
+          calendarBehavior: {
+            startTime: '09:00',
+            endTime: '17:00',
+            timeSlotInterval: 30
+          }
+        },
+        usingDefaults: true
+      }
     }
     
-    return { success: true, settings: data.settings || null }
+    return { success: true, settings: data.settings || null, usingDefaults: false }
   } catch (error) {
-    console.error('Error fetching booking settings:', error)
-    return { success: false, settings: null, error: error.message }
+    console.warn('⚠️ Error fetching booking settings. Using default opening hours:', error.message)
+    // Return defaults on error so booking form still works
+    return { 
+      success: true, 
+      settings: {
+        calendarBehavior: {
+          startTime: '09:00',
+          endTime: '17:00',
+          timeSlotInterval: 30
+        }
+      },
+      usingDefaults: true
+    }
   }
 }
 

@@ -114,10 +114,22 @@ const BookNow = () => {
           if (settingsResult.success && settingsResult.settings) {
             setBookingSettings(settingsResult.settings)
             if (isInitialLoad) {
-              console.log('✅ Booking settings loaded (opening hours configured)')
+              if (settingsResult.usingDefaults) {
+                console.log('✅ Using default opening hours (09:00-17:00) - settings endpoint requires authentication')
+              } else {
+                console.log('✅ Booking settings loaded (opening hours configured)')
+              }
             }
           } else if (isInitialLoad) {
-            console.warn('⚠️ No booking settings found - time slots may not be available')
+            // Fallback to defaults if settings fetch completely fails
+            console.warn('⚠️ No booking settings found - using default opening hours (09:00-17:00)')
+            setBookingSettings({
+              calendarBehavior: {
+                startTime: '09:00',
+                endTime: '17:00',
+                timeSlotInterval: 30
+              }
+            })
           }
           
           if (isInitialLoad) {
@@ -616,11 +628,7 @@ const BookNow = () => {
                   <div className="loading-message">Loading available times...</div>
                 ) : availableTimeSlots.length === 0 ? (
                   <div className="error-message" style={{ marginTop: '10px' }}>
-                    {!bookingSettings ? (
-                      <span>Opening hours not configured. Please contact us directly.</span>
-                    ) : (
-                      <span>No available time slots for this date. Please select another date.</span>
-                    )}
+                    <span>No available time slots for this date. Please select another date.</span>
                   </div>
                 ) : (
                   <div className="time-slots-grid">
