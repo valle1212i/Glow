@@ -361,6 +361,7 @@ const BookNow = () => {
       const service = services.find(s => s._id === selectedService)
       if (!service) {
         setAvailableTimeSlots([])
+        setUsingGeneralHours(false)
         setLoadingSlots(false)
         return
       }
