@@ -761,18 +761,23 @@ const BookNow = () => {
                     <p>Välj ett annat datum för att fortsätta med din bokning.</p>
                   </div>
                 ) : (
-                  <div className="time-slots-grid">
-                    {availableTimeSlots.map((slot, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        className={`time-slot ${selectedTime === slot.value ? 'selected' : ''}`}
-                        onClick={() => setSelectedTime(slot.value)}
-                      >
-                        {slot.display}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="time-slots-grid">
+                      {availableTimeSlots.map((slot, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className={`time-slot ${selectedTime === slot.value ? 'selected' : ''}`}
+                          onClick={() => setSelectedTime(slot.value)}
+                        >
+                          {slot.display}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="availability-note" style={{ marginTop: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '5px', fontSize: '0.85rem', color: '#6c757d' }}>
+                      <strong>Obs:</strong> Tillgänglighet baseras på allmänna öppettider. Den valda personalen kan ha annorlunda tillgänglighet.
+                    </div>
+                  </>
                 )}
               </div>
             )}
