@@ -294,12 +294,18 @@ const BookNow = () => {
         slotEnd.setMinutes(slotEnd.getMinutes() + durationMin)
         
         // ✅ CRITICAL: Also check that the slot doesn't extend beyond closing time
+        // Backend requires slots to END BEFORE closing time (not at or after closing time)
         if (actualEndHour !== null && actualEndMinutes !== null) {
           const slotEndMinutes = slotEnd.getHours() * 60 + slotEnd.getMinutes()
           const closingMinutes = actualEndHour * 60 + actualEndMinutes
           
-          if (slotEndMinutes > closingMinutes) {
+          // Slot must end BEFORE closing time (not at or after)
+          // Changed from > to >= to filter out slots that end exactly at closing time
+          if (slotEndMinutes >= closingMinutes) {
             slotsFilteredByClosing++
+            if (slotsFilteredByClosing <= 3) {
+              console.log(`  ⏰ [TIME SLOTS] Filtered slot ${slotStart.toTimeString().slice(0, 5)}-${slotEnd.toTimeString().slice(0, 5)}: ends at/after closing ${actualEndHour}:${actualEndMinutes.toString().padStart(2, '0')}`)
+            }
             continue
           }
         }
