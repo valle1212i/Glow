@@ -830,9 +830,6 @@ const BookNow = () => {
                         </button>
                       ))}
                     </div>
-                    <div className="availability-note" style={{ marginTop: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '5px', fontSize: '0.85rem', color: '#6c757d' }}>
-                      <strong>Obs:</strong> Tillgänglighet baseras på allmänna öppettider. Den valda personalen kan ha annorlunda tillgänglighet.
-                    </div>
                   </>
                 )}
               </div>
