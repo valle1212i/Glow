@@ -584,17 +584,25 @@ export const createBooking = async (bookingData) => {
   const endLocal = new Date(startLocal.getTime() + (duration || 60) * 60000) // duration in minutes
   
   // Debug: Verify that date is correct
-  console.log('📅 [BOOKING] Booking dates:', {
-    selectedDate: date,
-    selectedTime: startTime,
-    startLocal: startLocal.toLocaleString('sv-SE'),
-    startISO: startLocal.toISOString(),
-    endLocal: endLocal.toLocaleString('sv-SE'),
-    endISO: endLocal.toISOString(),
-    duration: duration || 60,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    localTimeOffset: startLocal.getTimezoneOffset()
-  })
+      // Calculate time components for detailed logging
+      const startHour = startLocal.getHours()
+      const startMin = startLocal.getMinutes()
+      const endHour = endLocal.getHours()
+      const endMin = endLocal.getMinutes()
+      
+      console.log('📅 [BOOKING] Booking dates:', {
+        selectedDate: date,
+        selectedTime: startTime,
+        startLocal: startLocal.toLocaleString('sv-SE'),
+        startISO: startLocal.toISOString(),
+        endLocal: endLocal.toLocaleString('sv-SE'),
+        endISO: endLocal.toISOString(),
+        startTimeComponents: { hour: startHour, minute: startMin },
+        endTimeComponents: { hour: endHour, minute: endMin },
+        duration: duration || 60,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        localTimeOffset: startLocal.getTimezoneOffset()
+      })
   
   const payload = {
     serviceId,
@@ -668,10 +676,31 @@ export const createBooking = async (bookingData) => {
             errorMessage = `Denna tid är inte tillgänglig för den valda personalen. Föreslagna tider: ${suggestedTimes}${moreSlots}`
           }
         } else if (usingGeneralHours && providerConflict.generalHours) {
-          // Using general hours - show them to user
+          // Using general hours - show them to user with more context
           const generalHours = providerConflict.generalHours
           if (generalHours.start && generalHours.end) {
-            errorMessage = `Denna tid är utanför arbetstiderna (${generalHours.start}-${generalHours.end}). Vänligen välj en annan tid.`
+            // Extract time components for better error message
+            const [selectedH, selectedM] = startTime.split(':').map(Number)
+            const [ghStartH, ghStartM] = generalHours.start.split(':').map(Number)
+            const [ghEndH, ghEndM] = generalHours.end.split(':').map(Number)
+            
+            // Check if selected time is actually within hours (for debugging)
+            const isWithinHours = (selectedH > ghStartH || (selectedH === ghStartH && selectedM >= ghStartM)) &&
+              (selectedH < ghEndH || (selectedH === ghEndH && selectedM < ghEndM))
+            
+            if (!isWithinHours) {
+              // Time is actually outside - show normal error
+              errorMessage = `Denna tid (${startTime}) är utanför arbetstiderna (${generalHours.start}-${generalHours.end}). Vänligen välj en annan tid.`
+            } else {
+              // Time appears to be within hours but backend rejected it - this might be a backend bug
+              errorMessage = `Bokningen kunde inte genomföras. Den valda tiden (${startTime}) verkar vara inom arbetstiderna (${generalHours.start}-${generalHours.end}), men backend avvisade den. Vänligen försök igen eller kontakta oss direkt.`
+              console.error('⚠️ [BOOKING] Backend rejected booking even though time appears within hours:', {
+                selectedTime: startTime,
+                generalHours: generalHours,
+                isWithinHours: isWithinHours,
+                payload: payload
+              })
+            }
           } else {
             errorMessage = 'Denna tid är utanför arbetstiderna. Vänligen välj en annan tid.'
           }
