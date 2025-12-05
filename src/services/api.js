@@ -583,35 +583,30 @@ export const createBooking = async (bookingData) => {
   const startLocal = new Date(year, month - 1, day, hours, minutes, 0, 0)
   const endLocal = new Date(startLocal.getTime() + (duration || 60) * 60000) // duration in minutes
   
-  // Debug: Verify that date is correct
-      // Calculate time components for detailed logging
-      const startHour = startLocal.getHours()
-      const startMin = startLocal.getMinutes()
-      const endHour = endLocal.getHours()
-      const endMin = endLocal.getMinutes()
-      
-      // Get timezone info for logging
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-      const timezoneOffset = startLocal.getTimezoneOffset()
-      
-      console.log('📅 [BOOKING] Booking dates:', {
-        selectedDate: date,
-        selectedTime: startTime,
-        startLocal: startLocal.toLocaleString('sv-SE'),
-        startISO: startLocal.toISOString(),
-        endLocal: endLocal.toLocaleString('sv-SE'),
-        endISO: endLocal.toISOString(),
-        startTimeComponents: { hour: startHour, minute: startMin },
-        endTimeComponents: { hour: endHour, minute: endMin },
-        duration: duration || 60,
-        timezone: userTimezone,
-        timezoneOffset: timezoneOffset,
-        timezoneOffsetHours: -timezoneOffset / 60 // Convert to hours for readability
-      })
-  
   // ✅ Get user's timezone for backend to use in validation
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const timezoneOffset = startLocal.getTimezoneOffset() // Offset in minutes (negative for ahead of UTC)
+  
+  // Calculate time components for detailed logging
+  const startHour = startLocal.getHours()
+  const startMin = startLocal.getMinutes()
+  const endHour = endLocal.getHours()
+  const endMin = endLocal.getMinutes()
+  
+  console.log('📅 [BOOKING] Booking dates:', {
+    selectedDate: date,
+    selectedTime: startTime,
+    startLocal: startLocal.toLocaleString('sv-SE'),
+    startISO: startLocal.toISOString(),
+    endLocal: endLocal.toLocaleString('sv-SE'),
+    endISO: endLocal.toISOString(),
+    startTimeComponents: { hour: startHour, minute: startMin },
+    endTimeComponents: { hour: endHour, minute: endMin },
+    duration: duration || 60,
+    timezone: userTimezone,
+    timezoneOffset: timezoneOffset,
+    timezoneOffsetHours: -timezoneOffset / 60 // Convert to hours for readability
+  })
   
   const payload = {
     serviceId,
