@@ -3,8 +3,11 @@ WORKDIR /app
 
 # Install dependencies with retry logic and delays for npm registry issues
 COPY package*.json ./
+# Configure npm to use cache and be more resilient
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000
 # Retry npm install with delays to handle transient registry errors
-# Add delays between retries to give npm registry time to recover
 RUN npm install || (sleep 10 && npm install) || (sleep 15 && npm install) || (sleep 20 && npm install)
 
 # Copy source
