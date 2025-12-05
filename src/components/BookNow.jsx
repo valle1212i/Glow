@@ -22,6 +22,7 @@ const BookNow = () => {
   const [bookingSettings, setBookingSettings] = useState(null)
   const [availableTimeSlots, setAvailableTimeSlots] = useState([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [usingGeneralHours, setUsingGeneralHours] = useState(false)
   
   // Use refs to store current values for comparison without causing re-renders
   const servicesRef = useRef([])
@@ -349,10 +350,12 @@ const BookNow = () => {
   const checkAvailability = useCallback(async () => {
     if (!selectedDate || !selectedService || !selectedProvider) {
       setAvailableTimeSlots([])
+      setUsingGeneralHours(false)
       return
     }
     
     setLoadingSlots(true)
+    setUsingGeneralHours(false) // Reset until we know
     
     try {
       const service = services.find(s => s._id === selectedService)
@@ -382,25 +385,27 @@ const BookNow = () => {
           providerName: availability.providerName,
           openingHours: availability.openingHours,
           availableSlotsCount: availability.availableSlots?.length || 0,
-          breaks: availability.breaks?.length || 0
+          breaks: availability.breaks?.length || 0,
+          hasSpecificHours: availability.hasSpecificHours,
+          usingGeneralHours: availability.usingGeneralHours
         })
         
-        // Check if provider has specific working hours configured
-        // If isOpen is false but no specific hours are set, fall back to general opening hours
-        const hasSpecificHours = availability.openingHours?.start && availability.openingHours?.end
+        // ✅ NEW: Use hasSpecificHours and usingGeneralHours flags from backend
+        const hasSpecificHours = availability.hasSpecificHours === true
+        const usingGeneralHours = availability.usingGeneralHours === true
         
-        if (availability.openingHours?.isOpen === false && !hasSpecificHours) {
-          // Provider has no specific hours configured - use general opening hours
-          console.log('ℹ️ [AVAILABILITY] Provider has no specific hours configured, using general opening hours')
-          
-          // Fall through to general opening hours fallback below
-        } else if (availability.openingHours?.isOpen === false && hasSpecificHours) {
-          // Provider is explicitly marked as not available (has hours but isOpen=false)
+        // Check if provider is available
+        if (availability.openingHours?.isOpen === false) {
+          // Provider is explicitly marked as not available
           console.warn('⚠️ [AVAILABILITY] Provider is not available on this day (explicitly closed)')
           setAvailableTimeSlots([])
+          setUsingGeneralHours(false)
           setLoadingSlots(false)
           return
-        } else if (availability.openingHours?.isOpen === true && availability.availableSlots?.length > 0) {
+        }
+        
+        // If provider has available slots, use them (regardless of whether they're from specific or general hours)
+        if (availability.openingHours?.isOpen === true && availability.availableSlots?.length > 0) {
           // Provider has specific hours and available slots - use them
           const slots = (availability.availableSlots || []).map(slotTime => {
             const [hours, minutes] = slotTime.split(':').map(Number)
@@ -420,8 +425,17 @@ const BookNow = () => {
           
           console.log('✅ [AVAILABILITY] Available slots from provider API:', {
             count: slots.length,
-            slots: slots.map(s => ({ display: s.display, value: s.value }))
+            slots: slots.map(s => ({ display: s.display, value: s.value })),
+            hasSpecificHours: hasSpecificHours,
+            usingGeneralHours: usingGeneralHours
           })
+          
+          // Store whether we're using general hours for UI display
+          setUsingGeneralHours(usingGeneralHours)
+          
+          if (usingGeneralHours) {
+            console.log('ℹ️ [AVAILABILITY] Using general opening hours (provider has no specific hours configured)')
+          }
           
           setAvailableTimeSlots(slots)
           setLoadingSlots(false)
@@ -458,6 +472,7 @@ const BookNow = () => {
       
       // Generate available slots using settings (fallback)
       const slots = generateTimeSlots(date, durationMin, existingBookings, bookingSettings)
+      setUsingGeneralHours(true) // We're using general hours as fallback
       setAvailableTimeSlots(slots)
       
       // Get actual closing time for validation warning
@@ -848,6 +863,11 @@ const BookNow = () => {
                         </button>
                       ))}
                     </div>
+                    {usingGeneralHours && availableTimeSlots.length > 0 && (
+                      <div className="availability-note" style={{ marginTop: '15px', padding: '10px', background: '#e7f3ff', borderRadius: '5px', fontSize: '0.85rem', color: '#0066cc' }}>
+                        <strong>ℹ️ Info:</strong> Tillgänglighet baseras på allmänna öppettider. Den valda personalen har inga specifika arbetstider konfigurerade.
+                      </div>
+                    )}
                   </>
                 )}
               </div>

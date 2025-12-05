@@ -653,10 +653,30 @@ export const createBooking = async (bookingData) => {
       const providerConflict = conflictDetails.find(c => c.type === 'PROVIDER_UNAVAILABLE' && c.reason === 'OUTSIDE_WORKING_HOURS')
       
       if (providerConflict) {
-        // Check if provider has no specific hours configured
-        if (!providerConflict.providerAvailability || 
-            (!providerConflict.providerAvailability.start && !providerConflict.providerAvailability.end)) {
-          // Provider has no specific hours - suggest configuring them or using general hours
+        // ✅ NEW: Use improved conflict information from backend
+        const usingGeneralHours = providerConflict.usingGeneralHours === true
+        const hasSpecificHours = providerConflict.hasSpecificHours === true
+        
+        // Check if backend provided suggested slots
+        if (providerConflict.suggestedSlots && providerConflict.suggestedSlots.length > 0) {
+          const suggestedTimes = providerConflict.suggestedSlots.slice(0, 5).join(', ') // Show first 5 slots
+          const moreSlots = providerConflict.suggestedSlots.length > 5 ? ` (+${providerConflict.suggestedSlots.length - 5} fler)` : ''
+          
+          if (usingGeneralHours) {
+            errorMessage = `Denna tid är utanför arbetstiderna. Föreslagna tider: ${suggestedTimes}${moreSlots}`
+          } else {
+            errorMessage = `Denna tid är inte tillgänglig för den valda personalen. Föreslagna tider: ${suggestedTimes}${moreSlots}`
+          }
+        } else if (usingGeneralHours && providerConflict.generalHours) {
+          // Using general hours - show them to user
+          const generalHours = providerConflict.generalHours
+          if (generalHours.start && generalHours.end) {
+            errorMessage = `Denna tid är utanför arbetstiderna (${generalHours.start}-${generalHours.end}). Vänligen välj en annan tid.`
+          } else {
+            errorMessage = 'Denna tid är utanför arbetstiderna. Vänligen välj en annan tid.'
+          }
+        } else if (!hasSpecificHours) {
+          // Provider has no specific hours configured
           errorMessage = 'Denna personalmedlem har inga arbetstider konfigurerade. Vänligen konfigurera arbetstider i kundportalen eller välj en annan personalmedlem.'
           console.error('❌ [BOOKING] Provider has no working hours configured:', {
             providerId: providerId,
@@ -664,15 +684,13 @@ export const createBooking = async (bookingData) => {
             time: startTime,
             conflict: providerConflict
           })
-        } else if (providerConflict.suggestedSlots && providerConflict.suggestedSlots.length > 0) {
-          // Backend provided suggested slots
-          const suggestedTimes = providerConflict.suggestedSlots.join(', ')
-          errorMessage = `Denna tid är inte tillgänglig för den valda personalen. Föreslagna tider: ${suggestedTimes}`
         } else {
           // Provider has specific hours but this time is outside them
           const providerHours = providerConflict.providerAvailability
-          if (providerHours.start && providerHours.end) {
+          if (providerHours && providerHours.start && providerHours.end) {
             errorMessage = `Denna tid är utanför personalens arbetstider (${providerHours.start}-${providerHours.end}). Vänligen välj en annan tid.`
+          } else {
+            errorMessage = 'Denna tid är inte tillgänglig för den valda personalen. Vänligen välj en annan tid.'
           }
         }
       }
