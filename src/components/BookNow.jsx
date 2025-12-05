@@ -426,8 +426,12 @@ const BookNow = () => {
     setIsProcessing(true)
     
     try {
-      // Format date as YYYY-MM-DD
-      const dateStr = selectedDate.toISOString().split('T')[0]
+      // Format date as YYYY-MM-DD in local time to avoid off-by-one issues
+      const dateStr = [
+        selectedDate.getFullYear(),
+        String(selectedDate.getMonth() + 1).padStart(2, '0'),
+        String(selectedDate.getDate()).padStart(2, '0')
+      ].join('-')
       const duration = getSelectedServiceDuration()
       
       const result = await createBooking({
