@@ -591,7 +591,9 @@ export const createBooking = async (bookingData) => {
     startISO: startLocal.toISOString(),
     endLocal: endLocal.toLocaleString('sv-SE'),
     endISO: endLocal.toISOString(),
-    duration: duration || 60
+    duration: duration || 60,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    localTimeOffset: startLocal.getTimezoneOffset()
   })
   
   const payload = {

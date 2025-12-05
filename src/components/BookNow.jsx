@@ -387,10 +387,39 @@ const BookNow = () => {
       const slots = generateTimeSlots(date, durationMin, existingBookings, bookingSettings)
       setAvailableTimeSlots(slots)
       
+      // Get actual closing time for validation warning
+      const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()]
+      const dayOpeningHours = bookingSettings?.openingHours?.[dayOfWeek]
+      let actualEndHour = null
+      let actualEndMinutes = null
+      if (dayOpeningHours && dayOpeningHours.isOpen !== false && dayOpeningHours.end) {
+        const [endH, endM] = dayOpeningHours.end.split(':').map(Number)
+        actualEndHour = endH
+        actualEndMinutes = endM
+      } else if (bookingSettings?.calendarBehavior?.endTime) {
+        const [endH, endM] = bookingSettings.calendarBehavior.endTime.split(':').map(Number)
+        actualEndHour = endH
+        actualEndMinutes = endM
+      }
+      
       console.log('✅ [AVAILABILITY] Available slots:', {
         count: slots.length,
-        slots: slots.map(s => ({ display: s.display, value: s.value, start: s.start.toISOString(), end: s.end.toISOString() }))
+        slots: slots.map(s => ({ 
+          display: s.display, 
+          value: s.value, 
+          start: s.start.toISOString(), 
+          end: s.end.toISOString(),
+          startLocal: s.start.toLocaleString('sv-SE'),
+          endLocal: s.end.toLocaleString('sv-SE')
+        })),
+        closingTime: actualEndHour !== null ? `${actualEndHour}:${actualEndMinutes.toString().padStart(2, '0')}` : 'not set',
+        warning: '⚠️ Backend may check provider-specific availability - slots might still be rejected'
       })
+      
+      // Warn about potential backend rejection
+      if (slots.length > 0) {
+        console.warn('⚠️ [AVAILABILITY] Note: Backend validates against provider-specific availability. These slots might be rejected if provider has different hours.')
+      }
     } catch (error) {
       console.error('Error checking availability:', error)
       setAvailableTimeSlots([])
