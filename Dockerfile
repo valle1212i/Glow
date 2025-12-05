@@ -1,10 +1,11 @@
 FROM node:18 AS builder
 WORKDIR /app
 
-# Install dependencies with retry logic for npm registry issues
+# Install dependencies with retry logic and delays for npm registry issues
 COPY package*.json ./
-# Retry npm install up to 3 times if it fails due to registry errors
-RUN npm install || npm install || npm install
+# Retry npm install with delays to handle transient registry errors
+# Add delays between retries to give npm registry time to recover
+RUN npm install || (sleep 10 && npm install) || (sleep 15 && npm install) || (sleep 20 && npm install)
 
 # Copy source
 COPY . .
