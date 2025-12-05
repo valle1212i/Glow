@@ -625,16 +625,43 @@ const BookNow = () => {
       ].join('-')
       const duration = getSelectedServiceDuration()
       
-      const result = await createBooking({
+      // Build booking payload based on formFields settings
+      const formFields = bookingSettings?.formFields || {}
+      const bookingPayload = {
         serviceId: selectedService,
         providerId: selectedProvider,
         date: dateStr,
         startTime: selectedTime,
         duration: duration,
-        customerName: formData.name,
-        email: formData.email || '',
-        phone: formData.phone || ''
-        })
+        customerName: formData.name
+      }
+      
+      // ✅ Include email only if requireEmail is enabled
+      if (formFields.requireEmail && formData.email) {
+        bookingPayload.email = formData.email
+      }
+      
+      // ✅ Include phone only if requirePhone is enabled
+      if (formFields.requirePhone && formData.phone) {
+        bookingPayload.phone = formData.phone
+      }
+      
+      // ✅ Include partySize only if requirePartySize is enabled
+      if (formFields.requirePartySize && formData.partySize) {
+        bookingPayload.partySize = formData.partySize
+      }
+      
+      // ✅ Include notes only if requireNotes is enabled
+      if (formFields.requireNotes && formData.notes) {
+        bookingPayload.notes = formData.notes
+      }
+      
+      // ✅ Include specialRequests only if allowSpecialRequests is enabled
+      if (formFields.allowSpecialRequests && formData.specialRequests) {
+        bookingPayload.specialRequests = formData.specialRequests
+      }
+      
+      const result = await createBooking(bookingPayload)
         
         if (result.success) {
           setSubmitted(true)
