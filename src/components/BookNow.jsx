@@ -385,43 +385,61 @@ const BookNow = () => {
           breaks: availability.breaks?.length || 0
         })
         
-        // Check if provider is available
-        if (!availability.openingHours?.isOpen) {
-          console.warn('⚠️ [AVAILABILITY] Provider is not available on this day')
+        // Check if provider has specific working hours configured
+        // If isOpen is false but no specific hours are set, fall back to general opening hours
+        const hasSpecificHours = availability.openingHours?.start && availability.openingHours?.end
+        
+        if (availability.openingHours?.isOpen === false && !hasSpecificHours) {
+          // Provider has no specific hours configured - use general opening hours
+          console.log('ℹ️ [AVAILABILITY] Provider has no specific hours configured, using general opening hours')
+          
+          // Fall through to general opening hours fallback below
+        } else if (availability.openingHours?.isOpen === false && hasSpecificHours) {
+          // Provider is explicitly marked as not available (has hours but isOpen=false)
+          console.warn('⚠️ [AVAILABILITY] Provider is not available on this day (explicitly closed)')
+          setAvailableTimeSlots([])
+          setLoadingSlots(false)
+          return
+        } else if (availability.openingHours?.isOpen === true && availability.availableSlots?.length > 0) {
+          // Provider has specific hours and available slots - use them
+          const slots = (availability.availableSlots || []).map(slotTime => {
+            const [hours, minutes] = slotTime.split(':').map(Number)
+            const slotStart = new Date(date)
+            slotStart.setHours(hours, minutes, 0, 0)
+            
+            const slotEnd = new Date(slotStart)
+            slotEnd.setMinutes(slotEnd.getMinutes() + durationMin)
+            
+            return {
+              start: slotStart,
+              end: slotEnd,
+              display: slotTime,
+              value: slotTime // HH:mm format
+            }
+          })
+          
+          console.log('✅ [AVAILABILITY] Available slots from provider API:', {
+            count: slots.length,
+            slots: slots.map(s => ({ display: s.display, value: s.value }))
+          })
+          
+          setAvailableTimeSlots(slots)
+          setLoadingSlots(false)
+          return
+        } else if (availability.openingHours?.isOpen === true && (!availability.availableSlots || availability.availableSlots.length === 0)) {
+          // Provider is open but no slots available (fully booked or other reason)
+          console.warn('⚠️ [AVAILABILITY] Provider is open but no slots available')
           setAvailableTimeSlots([])
           setLoadingSlots(false)
           return
         }
-        
-        // Convert available slots from API to our slot format
-        const slots = (availability.availableSlots || []).map(slotTime => {
-          const [hours, minutes] = slotTime.split(':').map(Number)
-          const slotStart = new Date(date)
-          slotStart.setHours(hours, minutes, 0, 0)
-          
-          const slotEnd = new Date(slotStart)
-          slotEnd.setMinutes(slotEnd.getMinutes() + durationMin)
-          
-          return {
-            start: slotStart,
-            end: slotEnd,
-            display: slotTime,
-            value: slotTime // HH:mm format
-          }
-        })
-        
-        console.log('✅ [AVAILABILITY] Available slots from provider API:', {
-          count: slots.length,
-          slots: slots.map(s => ({ display: s.display, value: s.value }))
-        })
-        
-        setAvailableTimeSlots(slots)
-        setLoadingSlots(false)
-        return
+        // If we get here, provider has no specific hours - fall through to general opening hours
       }
       
-      // Fallback to old method if provider availability endpoint is not available
-      console.warn('⚠️ [AVAILABILITY] Provider availability endpoint not available, falling back to general opening hours')
+      // Fallback to general opening hours if:
+      // 1. Provider availability endpoint is not available
+      // 2. Provider has no specific hours configured (isOpen: false, no start/end)
+      console.log('ℹ️ [AVAILABILITY] Using general opening hours (provider has no specific hours configured)')
       
       if (!bookingSettings) {
         setAvailableTimeSlots([])
