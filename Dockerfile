@@ -1,9 +1,10 @@
 FROM node:18 AS builder
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies with retry logic for npm registry issues
 COPY package*.json ./
-RUN npm install
+# Retry npm install up to 3 times if it fails due to registry errors
+RUN npm install || npm install || npm install
 
 # Copy source
 COPY . .
