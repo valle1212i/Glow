@@ -573,15 +573,31 @@ export const createBooking = async (bookingData) => {
     }
   }
   
-  // Convert date and time to ISO format
-  const startDate = new Date(`${date}T${startTime}`)
-  const endDate = new Date(startDate.getTime() + (duration || 60) * 60000) // duration in minutes
+  // ✅ CRITICAL: Construct dates in local time to avoid timezone issues
+  // Parse date and time separately to ensure correct local time construction
+  const [year, month, day] = date.split('-').map(Number) // "2025-12-12" -> [2025, 12, 12]
+  const [hours, minutes] = startTime.split(':').map(Number) // "14:30" -> [14, 30]
+  
+  // Create Date object in local time (not UTC)
+  // Note: month is 0-indexed in JavaScript Date constructor (0 = January, 11 = December)
+  const startLocal = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  const endLocal = new Date(startLocal.getTime() + (duration || 60) * 60000) // duration in minutes
+  
+  // Debug: Verify that date is correct
+  console.log('📅 Booking dates:', {
+    selectedDate: date,
+    selectedTime: startTime,
+    startLocal: startLocal.toLocaleString('sv-SE'),
+    startISO: startLocal.toISOString(),
+    endLocal: endLocal.toLocaleString('sv-SE'),
+    endISO: endLocal.toISOString()
+  })
   
   const payload = {
     serviceId,
     providerId,
-    start: startDate.toISOString(),
-    end: endDate.toISOString(),
+    start: startLocal.toISOString(), // ✅ Use ISO string from local time
+    end: endLocal.toISOString(),     // ✅ Use ISO string from local time
     customerName,
     email: email || '',
     phone: phone || '',
