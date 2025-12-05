@@ -648,6 +648,23 @@ export const createBooking = async (bookingData) => {
       console.log('🔍 [BOOKING] Detailed conflict information:')
       data.conflicts.forEach((conflict, index) => {
         console.log(`  Conflict ${index + 1}:`, JSON.stringify(conflict, null, 2))
+        
+        // Log time comparison if available
+        if (conflict.generalHours) {
+          const [ghStartH, ghStartM] = conflict.generalHours.start?.split(':').map(Number) || [null, null]
+          const [ghEndH, ghEndM] = conflict.generalHours.end?.split(':').map(Number) || [null, null]
+          const [selectedH, selectedM] = startTime.split(':').map(Number)
+          
+          console.log(`  ⏰ [BOOKING] Time comparison:`, {
+            selectedTime: `${selectedH}:${selectedM.toString().padStart(2, '0')}`,
+            generalHours: `${ghStartH}:${ghStartM?.toString().padStart(2, '0') || '00'}-${ghEndH}:${ghEndM?.toString().padStart(2, '0') || '00'}`,
+            bookingStartISO: payload.start,
+            bookingEndISO: payload.end,
+            isWithinHours: ghStartH !== null && ghEndH !== null && 
+              (selectedH > ghStartH || (selectedH === ghStartH && selectedM >= ghStartM)) &&
+              (selectedH < ghEndH || (selectedH === ghEndH && selectedM < ghEndM))
+          })
+        }
       })
     }
     
