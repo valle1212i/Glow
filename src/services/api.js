@@ -633,6 +633,14 @@ export const createBooking = async (bookingData) => {
       conflicts: data.conflicts
     })
     
+    // Log detailed conflict information
+    if (data.conflicts && Array.isArray(data.conflicts) && data.conflicts.length > 0) {
+      console.log('🔍 [BOOKING] Detailed conflict information:')
+      data.conflicts.forEach((conflict, index) => {
+        console.log(`  Conflict ${index + 1}:`, JSON.stringify(conflict, null, 2))
+      })
+    }
+    
     // Handle conflict (double booking or outside working hours)
     if (response.status === 409) {
       // Show backend's specific error message if available

@@ -368,9 +368,23 @@ const BookNow = () => {
       const bookingsResult = await getBookings(dayStart, dayEnd, selectedProvider)
       const existingBookings = bookingsResult.success ? (bookingsResult.bookings || []) : []
       
+      console.log('📋 [AVAILABILITY] Checking availability:', {
+        date: date.toLocaleDateString('sv-SE'),
+        serviceId: selectedService,
+        providerId: selectedProvider,
+        durationMin: durationMin,
+        existingBookingsCount: existingBookings.length,
+        bookingSettings: bookingSettings
+      })
+      
       // Generate available slots using settings
       const slots = generateTimeSlots(date, durationMin, existingBookings, bookingSettings)
       setAvailableTimeSlots(slots)
+      
+      console.log('✅ [AVAILABILITY] Available slots:', {
+        count: slots.length,
+        slots: slots.map(s => ({ display: s.display, value: s.value, start: s.start.toISOString(), end: s.end.toISOString() }))
+      })
     } catch (error) {
       console.error('Error checking availability:', error)
       setAvailableTimeSlots([])
