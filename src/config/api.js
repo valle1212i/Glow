@@ -38,7 +38,11 @@ export const API_CONFIG = {
     BOOKING_PROVIDERS: import.meta.env.PROD ? '/system/booking/public/providers' : '/api/system/booking/public/providers',
     BOOKING_BOOKINGS: import.meta.env.PROD ? '/system/booking/public/bookings' : '/api/system/booking/public/bookings',
     BOOKING_SETTINGS: import.meta.env.PROD ? '/system/booking/settings' : '/api/system/booking/settings',
-    BOOKING_SETTINGS_PUBLIC: import.meta.env.PROD ? '/system/booking/public/settings' : '/api/system/booking/public/settings'
+    BOOKING_SETTINGS_PUBLIC: import.meta.env.PROD ? '/system/booking/public/settings' : '/api/system/booking/public/settings',
+    BOOKING_PROVIDER_AVAILABILITY: (providerId) => 
+      import.meta.env.PROD 
+        ? `/system/booking/public/providers/${providerId}/availability`
+        : `/api/system/booking/public/providers/${providerId}/availability`
     
     // Note: Stripe checkout is handled directly by Express server at /api/create-checkout-session
     // No endpoint config needed as it's called directly

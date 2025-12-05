@@ -719,6 +719,46 @@ export const getBookings = async (fromDate, toDate, providerId = null) => {
 }
 
 /**
+ * Get provider-specific availability
+ * Uses new public endpoint - returns available slots for a specific provider and date
+ */
+export const getProviderAvailability = async (providerId, date, slotDuration = 30) => {
+  try {
+    // Format date as YYYY-MM-DD
+    const dateStr = date instanceof Date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      : date
+    
+    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_PROVIDER_AVAILABILITY(providerId)}?date=${dateStr}&slotDuration=${slotDuration}`
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-Tenant': API_CONFIG.TENANT
+      }
+      // No credentials needed for public endpoints
+    })
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.warn(`⚠️ Provider availability endpoint not found for provider ${providerId}`)
+        return { success: false, availability: null, error: 'Provider availability endpoint not available' }
+      }
+      return { success: false, availability: null, error: `Failed to fetch provider availability: ${response.status}` }
+    }
+    
+    const data = await response.json()
+    if (!data.success || !data.availability) {
+      return { success: false, availability: null, error: data.message || 'Failed to fetch provider availability' }
+    }
+    
+    return { success: true, availability: data.availability }
+  } catch (error) {
+    console.error('Error fetching provider availability:', error)
+    return { success: false, availability: null, error: error.message }
+  }
+}
+
+/**
  * Get booking settings (including opening hours)
  * Uses public endpoint - no authentication required
  */

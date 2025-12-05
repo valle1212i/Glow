@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { getBookingServices, getBookingProviders, createBooking, getBookings, getBookingSettings } from '../services/api'
+import { getBookingServices, getBookingProviders, createBooking, getBookings, getBookingSettings, getProviderAvailability } from '../services/api'
 import './BookNow.css'
 
 const BookNow = () => {
@@ -347,7 +347,7 @@ const BookNow = () => {
   
   // Check availability when service, provider, or date changes
   const checkAvailability = useCallback(async () => {
-    if (!selectedDate || !selectedService || !selectedProvider || !bookingSettings) {
+    if (!selectedDate || !selectedService || !selectedProvider) {
       setAvailableTimeSlots([])
       return
     }
@@ -365,6 +365,70 @@ const BookNow = () => {
       const durationMin = service.durationMin || 60
       const date = new Date(selectedDate)
       
+      console.log('📋 [AVAILABILITY] Checking availability:', {
+        date: date.toLocaleDateString('sv-SE'),
+        serviceId: selectedService,
+        providerId: selectedProvider,
+        durationMin: durationMin
+      })
+      
+      // ✅ NEW: Use provider-specific availability endpoint
+      const availabilityResult = await getProviderAvailability(selectedProvider, date, durationMin)
+      
+      if (availabilityResult.success && availabilityResult.availability) {
+        const availability = availabilityResult.availability
+        
+        console.log('✅ [AVAILABILITY] Provider-specific availability:', {
+          providerName: availability.providerName,
+          openingHours: availability.openingHours,
+          availableSlotsCount: availability.availableSlots?.length || 0,
+          breaks: availability.breaks?.length || 0
+        })
+        
+        // Check if provider is available
+        if (!availability.openingHours?.isOpen) {
+          console.warn('⚠️ [AVAILABILITY] Provider is not available on this day')
+          setAvailableTimeSlots([])
+          setLoadingSlots(false)
+          return
+        }
+        
+        // Convert available slots from API to our slot format
+        const slots = (availability.availableSlots || []).map(slotTime => {
+          const [hours, minutes] = slotTime.split(':').map(Number)
+          const slotStart = new Date(date)
+          slotStart.setHours(hours, minutes, 0, 0)
+          
+          const slotEnd = new Date(slotStart)
+          slotEnd.setMinutes(slotEnd.getMinutes() + durationMin)
+          
+          return {
+            start: slotStart,
+            end: slotEnd,
+            display: slotTime,
+            value: slotTime // HH:mm format
+          }
+        })
+        
+        console.log('✅ [AVAILABILITY] Available slots from provider API:', {
+          count: slots.length,
+          slots: slots.map(s => ({ display: s.display, value: s.value }))
+        })
+        
+        setAvailableTimeSlots(slots)
+        setLoadingSlots(false)
+        return
+      }
+      
+      // Fallback to old method if provider availability endpoint is not available
+      console.warn('⚠️ [AVAILABILITY] Provider availability endpoint not available, falling back to general opening hours')
+      
+      if (!bookingSettings) {
+        setAvailableTimeSlots([])
+        setLoadingSlots(false)
+        return
+      }
+      
       // Get bookings for the selected day
       const dayStart = new Date(date)
       dayStart.setHours(0, 0, 0, 0)
@@ -374,16 +438,7 @@ const BookNow = () => {
       const bookingsResult = await getBookings(dayStart, dayEnd, selectedProvider)
       const existingBookings = bookingsResult.success ? (bookingsResult.bookings || []) : []
       
-      console.log('📋 [AVAILABILITY] Checking availability:', {
-        date: date.toLocaleDateString('sv-SE'),
-        serviceId: selectedService,
-        providerId: selectedProvider,
-        durationMin: durationMin,
-        existingBookingsCount: existingBookings.length,
-        bookingSettings: bookingSettings
-      })
-      
-      // Generate available slots using settings
+      // Generate available slots using settings (fallback)
       const slots = generateTimeSlots(date, durationMin, existingBookings, bookingSettings)
       setAvailableTimeSlots(slots)
       
@@ -428,14 +483,15 @@ const BookNow = () => {
     }
   }, [selectedDate, selectedService, selectedProvider, bookingSettings, services])
   
-  // Check availability when service, provider, date, or settings change
+  // Check availability when service, provider, or date changes
+  // Note: No longer requires bookingSettings since we use provider-specific availability
   useEffect(() => {
-    if (selectedDate && selectedService && selectedProvider && bookingSettings && services.length > 0) {
+    if (selectedDate && selectedService && selectedProvider && services.length > 0) {
       checkAvailability()
     } else {
       setAvailableTimeSlots([])
     }
-  }, [selectedDate, selectedService, selectedProvider, bookingSettings, services, checkAvailability])
+  }, [selectedDate, selectedService, selectedProvider, services, checkAvailability])
 
   // Get duration from selected service
   const getSelectedServiceDuration = () => {
