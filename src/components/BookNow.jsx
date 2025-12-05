@@ -556,8 +556,28 @@ const BookNow = () => {
           }, 3000)
         } else {
         if (result.conflict) {
-          // Show backend's specific error message (e.g., "Bokningstiden är utanför arbetstider")
-          setError(result.error || 'This time slot is already booked. Please choose another time.')
+          // Show backend's specific error message
+          let errorMessage = result.error || 'This time slot is already booked. Please choose another time.'
+          
+          // Check if it's an "outside working hours" error - might be provider-specific availability
+          if (result.error && result.error.includes('utanför arbetstider')) {
+            errorMessage = 'Denna tid är inte tillgänglig för den valda personalen. Vänligen välj en annan tid eller personal.'
+            
+            // Log detailed conflict info
+            if (result.conflicts && result.conflicts.length > 0) {
+              const conflict = result.conflicts[0]
+              if (conflict.reason === 'OUTSIDE_WORKING_HOURS') {
+                console.error('❌ [BOOKING] Provider-specific availability issue:', {
+                  providerId: selectedProvider,
+                  date: selectedDate?.toLocaleDateString('sv-SE'),
+                  time: selectedTime,
+                  conflict: conflict
+                })
+              }
+            }
+          }
+          
+          setError(errorMessage)
           
           // Log conflict details for debugging
           if (result.conflicts && result.conflicts.length > 0) {
