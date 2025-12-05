@@ -455,6 +455,8 @@ const BookNow = () => {
         } else {
         if (result.conflict) {
           setError('This time slot is already booked. Please choose another time.')
+          // Refresh availability in case the slot was just taken
+          await checkAvailability()
         } else {
           setError(result.error || 'Failed to book appointment. Please try again.')
         }
