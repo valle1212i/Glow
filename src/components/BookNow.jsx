@@ -194,6 +194,15 @@ const BookNow = () => {
     const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()]
     const dayOpeningHours = settings?.openingHours?.[dayOfWeek]
     
+    // 🔍 DEBUG: Log opening hours being used
+    console.log('🕐 [TIME SLOTS] Generating slots for:', {
+      date: date.toLocaleDateString('sv-SE'),
+      dayOfWeek: dayOfWeek,
+      dayOpeningHours: dayOpeningHours,
+      calendarBehavior: settings?.calendarBehavior,
+      durationMin: durationMin
+    })
+    
     // ✅ CRITICAL: Use day-specific opening hours first, then fallback to calendarBehavior
     let startHour = null
     let endHour = null
@@ -205,8 +214,16 @@ const BookNow = () => {
       
       startHour = startHours
       endHour = endMinutes > 0 ? endHours + 1 : endHours + 1
+      
+      console.log('🕐 [TIME SLOTS] Using day-specific hours:', {
+        start: dayOpeningHours.start,
+        end: dayOpeningHours.end,
+        startHour: startHour,
+        endHour: endHour
+      })
     } else if (dayOpeningHours?.isOpen === false) {
       // Business is closed on this day
+      console.log('🕐 [TIME SLOTS] Business is closed on', dayOfWeek)
       return []
     } else if (settings?.calendarBehavior?.startTime && settings?.calendarBehavior?.endTime) {
       // ✅ PRIORITY 2: Fallback to general calendarBehavior times
@@ -215,11 +232,18 @@ const BookNow = () => {
       
       startHour = startHours
       endHour = endMinutes > 0 ? endHours + 1 : endHours + 1
+      
+      console.log('🕐 [TIME SLOTS] Using calendarBehavior hours:', {
+        startTime: settings.calendarBehavior.startTime,
+        endTime: settings.calendarBehavior.endTime,
+        startHour: startHour,
+        endHour: endHour
+      })
     }
     
     // ✅ CRITICAL: If no settings, return empty (don't show any slots)
     if (startHour === null || endHour === null) {
-      console.warn('⚠️ No opening hours configured - cannot generate time slots')
+      console.warn('⚠️ [TIME SLOTS] No opening hours configured - cannot generate time slots')
       return []
     }
     
@@ -238,6 +262,18 @@ const BookNow = () => {
       actualEndMinutes = endM
     }
     
+    console.log('🕐 [TIME SLOTS] Slot generation parameters:', {
+      slotInterval: slotInterval,
+      actualEndHour: actualEndHour,
+      actualEndMinutes: actualEndMinutes,
+      closingTime: actualEndHour !== null ? `${actualEndHour}:${actualEndMinutes.toString().padStart(2, '0')}` : 'not set',
+      hourRange: `${startHour}-${endHour}`
+    })
+    
+    let slotsGenerated = 0
+    let slotsFilteredByClosing = 0
+    let slotsFilteredByConflict = 0
+    
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += slotInterval) {
         const slotStart = new Date(date)
@@ -249,6 +285,7 @@ const BookNow = () => {
           const closingMinutes = actualEndHour * 60 + actualEndMinutes
           
           if (slotStartMinutes >= closingMinutes) {
+            slotsFilteredByClosing++
             continue
           }
         }
@@ -262,6 +299,7 @@ const BookNow = () => {
           const closingMinutes = actualEndHour * 60 + actualEndMinutes
           
           if (slotEndMinutes > closingMinutes) {
+            slotsFilteredByClosing++
             continue
           }
         }
@@ -283,9 +321,20 @@ const BookNow = () => {
             }),
             value: slotStart.toTimeString().slice(0, 5) // HH:mm format
           })
+          slotsGenerated++
+        } else {
+          slotsFilteredByConflict++
         }
       }
     }
+    
+    console.log('🕐 [TIME SLOTS] Generation complete:', {
+      totalSlotsGenerated: slotsGenerated,
+      slotsFilteredByClosing: slotsFilteredByClosing,
+      slotsFilteredByConflict: slotsFilteredByConflict,
+      availableSlots: slots.length,
+      slotTimes: slots.map(s => s.display).slice(0, 10) // Show first 10 slots
+    })
     
     return slots
   }
@@ -458,7 +507,14 @@ const BookNow = () => {
           }, 3000)
         } else {
         if (result.conflict) {
-          setError('This time slot is already booked. Please choose another time.')
+          // Show backend's specific error message (e.g., "Bokningstiden är utanför arbetstider")
+          setError(result.error || 'This time slot is already booked. Please choose another time.')
+          
+          // Log conflict details for debugging
+          if (result.conflicts && result.conflicts.length > 0) {
+            console.error('❌ [BOOKING] Conflict details:', result.conflicts)
+          }
+          
           // Refresh availability in case the slot was just taken
           await checkAvailability()
         } else {

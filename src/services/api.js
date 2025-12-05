@@ -584,13 +584,14 @@ export const createBooking = async (bookingData) => {
   const endLocal = new Date(startLocal.getTime() + (duration || 60) * 60000) // duration in minutes
   
   // Debug: Verify that date is correct
-  console.log('📅 Booking dates:', {
+  console.log('📅 [BOOKING] Booking dates:', {
     selectedDate: date,
     selectedTime: startTime,
     startLocal: startLocal.toLocaleString('sv-SE'),
     startISO: startLocal.toISOString(),
     endLocal: endLocal.toLocaleString('sv-SE'),
-    endISO: endLocal.toISOString()
+    endISO: endLocal.toISOString(),
+    duration: duration || 60
   })
   
   const payload = {
@@ -603,6 +604,12 @@ export const createBooking = async (bookingData) => {
     phone: phone || '',
     status: 'confirmed'
   }
+  
+  console.log('📤 [BOOKING] Sending booking payload:', {
+    ...payload,
+    start: payload.start,
+    end: payload.end
+  })
   
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BOOKING_BOOKINGS}`, {
@@ -618,12 +625,31 @@ export const createBooking = async (bookingData) => {
     
     const data = await response.json()
     
-    // Handle conflict (double booking)
+    console.log('📥 [BOOKING] Backend response:', {
+      status: response.status,
+      success: data.success,
+      message: data.message,
+      error: data.error,
+      conflicts: data.conflicts
+    })
+    
+    // Handle conflict (double booking or outside working hours)
     if (response.status === 409) {
+      // Show backend's specific error message if available
+      const errorMessage = data.message || data.error || 'This time slot is already booked. Please choose another time.'
+      const conflictDetails = data.conflicts || []
+      
+      console.error('❌ [BOOKING] Conflict detected:', {
+        message: errorMessage,
+        conflicts: conflictDetails,
+        payload: payload
+      })
+      
       return {
         success: false,
         conflict: true,
-        error: 'This time slot is already booked. Please choose another time.'
+        error: errorMessage,
+        conflicts: conflictDetails
       }
     }
     
