@@ -590,6 +590,10 @@ export const createBooking = async (bookingData) => {
       const endHour = endLocal.getHours()
       const endMin = endLocal.getMinutes()
       
+      // Get timezone info for logging
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const timezoneOffset = startLocal.getTimezoneOffset()
+      
       console.log('📅 [BOOKING] Booking dates:', {
         selectedDate: date,
         selectedTime: startTime,
@@ -600,9 +604,14 @@ export const createBooking = async (bookingData) => {
         startTimeComponents: { hour: startHour, minute: startMin },
         endTimeComponents: { hour: endHour, minute: endMin },
         duration: duration || 60,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        localTimeOffset: startLocal.getTimezoneOffset()
+        timezone: userTimezone,
+        timezoneOffset: timezoneOffset,
+        timezoneOffsetHours: -timezoneOffset / 60 // Convert to hours for readability
       })
+  
+  // ✅ Get user's timezone for backend to use in validation
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const timezoneOffset = startLocal.getTimezoneOffset() // Offset in minutes (negative for ahead of UTC)
   
   const payload = {
     serviceId,
@@ -612,7 +621,10 @@ export const createBooking = async (bookingData) => {
     customerName,
     email: email || '',
     phone: phone || '',
-    status: 'confirmed'
+    status: 'confirmed',
+    // ✅ Send timezone information to help backend validate correctly
+    timezone: userTimezone, // e.g., "Europe/Madrid"
+    timezoneOffset: timezoneOffset // Offset in minutes (e.g., -60 for UTC+1)
   }
   
   console.log('📤 [BOOKING] Sending booking payload:', {
