@@ -13,7 +13,10 @@ const BookNow = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    partySize: 1,
+    notes: '',
+    specialRequests: ''
   })
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -642,7 +645,7 @@ const BookNow = () => {
           setSelectedProvider('')
             setSelectedDate(null)
             setSelectedTime('')
-            setFormData({ name: '', email: '', phone: '' })
+            setFormData({ name: '', email: '', phone: '', partySize: 1, notes: '', specialRequests: '' })
           }, 3000)
         } else {
         if (result.conflict) {
@@ -852,18 +855,18 @@ const BookNow = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="time-slots-grid">
+                <div className="time-slots-grid">
                       {availableTimeSlots.map((slot, index) => (
-                        <button
+                    <button
                           key={index}
-                          type="button"
+                            type="button"
                           className={`time-slot ${selectedTime === slot.value ? 'selected' : ''}`}
                           onClick={() => setSelectedTime(slot.value)}
-                        >
+                    >
                           {slot.display}
-                        </button>
-                      ))}
-                    </div>
+                    </button>
+                  ))}
+                </div>
                     {usingGeneralHours && availableTimeSlots.length > 0 && (
                       <div className="availability-note" style={{ marginTop: '15px', padding: '10px', background: '#e7f3ff', borderRadius: '5px', fontSize: '0.85rem', color: '#0066cc' }}>
                         <strong>ℹ️ Info:</strong> Tillgänglighet baseras på allmänna öppettider. Den valda personalen har inga specifika arbetstider konfigurerade.
@@ -874,33 +877,44 @@ const BookNow = () => {
               </div>
             )}
 
+              {/* Name - always required */}
               <div className="form-group">
-                    <label htmlFor="name">Name *</label>
+                <label htmlFor="name">Namn *</label>
                 <input
                   type="text"
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="Your full name"
+                  placeholder="Ditt fullständiga namn"
                   required
                 />
               </div>
 
+              {/* ✅ Email - show only if requireEmail is enabled */}
+              {bookingSettings?.formFields?.requireEmail && (
               <div className="form-group">
-                <label htmlFor="email">Email</label>
+                  <label htmlFor="email">
+                    E-post {bookingSettings.formFields.requireEmail ? '*' : ''}
+                  </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="your.email@example.com"
+                    placeholder="din.email@example.com"
+                    required={bookingSettings.formFields.requireEmail}
                 />
               </div>
+              )}
 
+              {/* ✅ Phone - show only if requirePhone is enabled */}
+              {bookingSettings?.formFields?.requirePhone && (
               <div className="form-group">
-                <label htmlFor="phone">Phone Number</label>
+                  <label htmlFor="phone">
+                    Telefon {bookingSettings.formFields.requirePhone ? '*' : ''}
+                  </label>
                 <input
                   type="tel"
                   id="phone"
@@ -908,8 +922,61 @@ const BookNow = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                       placeholder="+46 123 456 789"
+                    required={bookingSettings.formFields.requirePhone}
+                  />
+                </div>
+              )}
+
+              {/* ✅ Party Size - show only if requirePartySize is enabled */}
+              {bookingSettings?.formFields?.requirePartySize && (
+                <div className="form-group">
+                  <label htmlFor="partySize">
+                    Gruppstorlek {bookingSettings.formFields.requirePartySize ? '*' : ''}
+                  </label>
+                  <input
+                    type="number"
+                    id="partySize"
+                    name="partySize"
+                    min="1"
+                    value={formData.partySize || 1}
+                    onChange={(e) => handleInputChange({ target: { name: 'partySize', value: parseInt(e.target.value) || 1 } })}
+                    required={bookingSettings.formFields.requirePartySize}
+                  />
+                </div>
+              )}
+
+              {/* ✅ Notes - show only if requireNotes is enabled */}
+              {bookingSettings?.formFields?.requireNotes && (
+                <div className="form-group">
+                  <label htmlFor="notes">
+                    Anteckningar {bookingSettings.formFields.requireNotes ? '*' : ''}
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes || ''}
+                    onChange={handleInputChange}
+                    required={bookingSettings.formFields.requireNotes}
+                    rows="3"
+                    placeholder="Lägg till anteckningar om din bokning..."
+                  />
+                </div>
+              )}
+
+              {/* ✅ Special Requests - show only if allowSpecialRequests is enabled (optional) */}
+              {bookingSettings?.formFields?.allowSpecialRequests && (
+                <div className="form-group">
+                  <label htmlFor="specialRequests">Särskilda önskemål</label>
+                  <textarea
+                    id="specialRequests"
+                    name="specialRequests"
+                    value={formData.specialRequests || ''}
+                    onChange={handleInputChange}
+                    rows="3"
+                    placeholder="Har du några särskilda önskemål?"
                 />
               </div>
+              )}
 
                   {error && (
                     <div className="error-message">{error}</div>

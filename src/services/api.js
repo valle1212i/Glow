@@ -554,7 +554,7 @@ export const getBookingProviders = async () => {
  * Create a booking
  */
 export const createBooking = async (bookingData) => {
-  const { serviceId, providerId, date, startTime, duration, customerName, email, phone } = bookingData
+  const { serviceId, providerId, date, startTime, duration, customerName, email, phone, partySize, notes, specialRequests } = bookingData
   
   // Validate required fields
   if (!serviceId || !providerId || !date || !startTime || !customerName) {
