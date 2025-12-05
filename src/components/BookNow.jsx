@@ -31,6 +31,26 @@ const BookNow = () => {
   const servicesRef = useRef([])
   const providersRef = useRef([])
 
+  // ✅ Periodic refresh of booking settings (every 5 minutes) to get live updates
+  useEffect(() => {
+    const refreshSettings = async () => {
+      try {
+        const settingsResult = await getBookingSettings()
+        if (settingsResult.success && settingsResult.settings) {
+          setBookingSettings(settingsResult.settings)
+          console.log('✅ Booking settings refreshed (including formFields)')
+        }
+      } catch (error) {
+        console.error('Error refreshing booking settings:', error)
+      }
+    }
+    
+    // Refresh settings every 5 minutes
+    const intervalId = setInterval(refreshSettings, 5 * 60 * 1000)
+    
+    return () => clearInterval(intervalId)
+  }, [])
+
   // Load services and providers on mount and set up auto-refresh
   useEffect(() => {
     // Check if data has changed
