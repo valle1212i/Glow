@@ -646,8 +646,36 @@ export const createBooking = async (bookingData) => {
     // Handle conflict (double booking or outside working hours)
     if (response.status === 409) {
       // Show backend's specific error message if available
-      const errorMessage = data.message || data.error || 'This time slot is already booked. Please choose another time.'
+      let errorMessage = data.message || data.error || 'This time slot is already booked. Please choose another time.'
       const conflictDetails = data.conflicts || []
+      
+      // Check if it's a provider availability issue
+      const providerConflict = conflictDetails.find(c => c.type === 'PROVIDER_UNAVAILABLE' && c.reason === 'OUTSIDE_WORKING_HOURS')
+      
+      if (providerConflict) {
+        // Check if provider has no specific hours configured
+        if (!providerConflict.providerAvailability || 
+            (!providerConflict.providerAvailability.start && !providerConflict.providerAvailability.end)) {
+          // Provider has no specific hours - suggest configuring them or using general hours
+          errorMessage = 'Denna personalmedlem har inga arbetstider konfigurerade. Vänligen konfigurera arbetstider i kundportalen eller välj en annan personalmedlem.'
+          console.error('❌ [BOOKING] Provider has no working hours configured:', {
+            providerId: providerId,
+            date: date,
+            time: startTime,
+            conflict: providerConflict
+          })
+        } else if (providerConflict.suggestedSlots && providerConflict.suggestedSlots.length > 0) {
+          // Backend provided suggested slots
+          const suggestedTimes = providerConflict.suggestedSlots.join(', ')
+          errorMessage = `Denna tid är inte tillgänglig för den valda personalen. Föreslagna tider: ${suggestedTimes}`
+        } else {
+          // Provider has specific hours but this time is outside them
+          const providerHours = providerConflict.providerAvailability
+          if (providerHours.start && providerHours.end) {
+            errorMessage = `Denna tid är utanför personalens arbetstider (${providerHours.start}-${providerHours.end}). Vänligen välj en annan tid.`
+          }
+        }
+      }
       
       console.error('❌ [BOOKING] Conflict detected:', {
         message: errorMessage,
