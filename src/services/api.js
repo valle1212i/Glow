@@ -348,37 +348,41 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
 
 /**
  * Create Stripe checkout session
- * Creates checkout session directly with Stripe (not through customer portal)
+ * Uses new storefront checkout endpoint with shipping options, stock validation, and order creation
  * Returns checkout session URL to redirect user to Stripe
  */
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
-  // Build line items for Stripe checkout
-  // Use regular price IDs (campaign price lookup disabled for now)
-  const lineItems = cartItems.map(item => ({
-    price: getCheckoutPriceId(item), // Use regular price ID
-    quantity: item.quantity
+  // Convert cart items to new storefront checkout format
+  // Format: { variantId, quantity, stripePriceId, priceSEK }
+  const items = cartItems.map(item => ({
+    variantId: item.variantId || `PRODUCT-${item.productId || item.id}`, // Fallback format if variantId not provided
+    quantity: item.quantity,
+    stripePriceId: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
+    priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
   }))
 
-  // Get productId from first cart item (if available)
-  const productId = cartItems.length > 0 ? cartItems[0].productId : null
-
+  // Build payload for storefront checkout endpoint
   const payload = {
-    lineItems: lineItems,
+    items: items,
     successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${window.location.origin}/checkout/cancel`,
-    productId: productId // Include productId for tracking (for single product purchases)
+    cancelUrl: `${window.location.origin}/checkout/cancel`
+    // customerEmail is optional - Stripe will collect it if not provided
+    // recipientAddress is optional - can be added for PostNord dynamic rates
   }
 
   try {
     // 🔍 DEBUG: Log checkout initiation
-    console.log('🛒 [ABANDONED CART] Initiating checkout session:', {
+    console.log('🛒 [STOREFRONT CHECKOUT] Initiating checkout session:', {
       cartItemsCount: cartItems.length,
-      productId: productId || 'none',
+      itemsCount: items.length,
+      tenant: API_CONFIG.TENANT,
       timestamp: new Date().toISOString()
     })
 
-    // Call our own backend route (not customer portal)
-    const response = await fetch('/api/create-checkout-session', {
+    // Call backend storefront checkout endpoint
+    const checkoutEndpoint = API_CONFIG.ENDPOINTS.STOREFRONT_CHECKOUT(API_CONFIG.TENANT)
+    const checkoutUrl = `${API_CONFIG.BASE_URL}${checkoutEndpoint}`
+    const response = await fetch(checkoutUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -388,28 +392,31 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
 
     const data = await response.json()
 
-    if (response.ok && data.url) {
+    if (response.ok && data.success && data.checkoutUrl) {
       // 🔍 DEBUG: Log successful session creation before redirect
-      console.log('✅ [ABANDONED CART] Checkout session created successfully:', {
+      console.log('✅ [STOREFRONT CHECKOUT] Checkout session created successfully:', {
         sessionId: data.sessionId,
-        url: data.url.substring(0, 50) + '...',
+        orderId: data.orderId,
+        checkoutUrl: data.checkoutUrl.substring(0, 50) + '...',
+        expiresAt: data.expiresAt,
         redirecting: true,
         timestamp: new Date().toISOString()
       })
-      console.log('📊 [ABANDONED CART] Session will be tracked by customer portal. If cancelled, will be marked as abandoned after 30 minutes.')
+      console.log('📊 [STOREFRONT CHECKOUT] Features: Shipping options, stock validation, order creation')
       
       // Redirect to Stripe checkout
-      window.location.href = data.url
+      window.location.href = data.checkoutUrl
       return { success: true }
     }
 
+    // Handle errors
     return {
       success: false,
-      error: data.error || 'Kunde inte skapa checkout-session. Försök igen.',
+      error: data.error || data.message || 'Kunde inte skapa checkout-session. Försök igen.',
       status: response.status
     }
   } catch (error) {
-    console.error('Checkout failed:', error)
+    console.error('❌ [STOREFRONT CHECKOUT] Checkout failed:', error)
     return {
       success: false,
       error: 'Ett fel uppstod vid checkout. Försök igen.',

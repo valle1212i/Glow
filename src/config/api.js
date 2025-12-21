@@ -42,10 +42,14 @@ export const API_CONFIG = {
     BOOKING_PROVIDER_AVAILABILITY: (providerId) => 
       import.meta.env.PROD 
         ? `/system/booking/public/providers/${providerId}/availability`
-        : `/api/system/booking/public/providers/${providerId}/availability`
+        : `/api/system/booking/public/providers/${providerId}/availability`,
     
-    // Note: Stripe checkout is handled directly by Express server at /api/create-checkout-session
-    // No endpoint config needed as it's called directly
+    // Storefront Checkout (New endpoint with shipping options, stock validation, order creation)
+    // Public endpoint - no authentication required
+    STOREFRONT_CHECKOUT: (tenantId) =>
+      import.meta.env.PROD
+        ? `/storefront/${tenantId}/checkout`
+        : `/api/storefront/${tenantId}/checkout`
   }
 }
 
