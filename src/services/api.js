@@ -379,18 +379,62 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       timestamp: new Date().toISOString()
     })
 
+    // Get CSRF token for POST request
+    const csrfToken = await getCSRFToken()
+    
     // Call backend storefront checkout endpoint
     const checkoutEndpoint = API_CONFIG.ENDPOINTS.STOREFRONT_CHECKOUT(API_CONFIG.TENANT)
     const checkoutUrl = `${API_CONFIG.BASE_URL}${checkoutEndpoint}`
+    
+    // Build headers with CSRF token and tenant
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Tenant': API_CONFIG.TENANT
+    }
+    
+    // Add CSRF token if available
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken
+    } else {
+      console.warn('⚠️ [STOREFRONT CHECKOUT] CSRF token is empty, request may fail if backend requires it')
+    }
+    
     const response = await fetch(checkoutUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
+      credentials: 'include', // Include cookies for session
       body: JSON.stringify(payload)
     })
 
-    const data = await response.json()
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || ''
+    let data
+    
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        // If JSON parsing fails, try to get error message from text
+        const text = await response.text()
+        console.error('❌ [STOREFRONT CHECKOUT] Failed to parse JSON response:', parseError)
+        return {
+          success: false,
+          error: `Ogiltigt svar från servern (${response.status})`,
+          status: response.status
+        }
+      }
+    } else {
+      // Non-JSON response (likely HTML error page)
+      const text = await response.text()
+      console.error(`❌ [STOREFRONT CHECKOUT] Server returned non-JSON (${contentType}): ${response.status}`)
+      return {
+        success: false,
+        error: response.status === 403 
+          ? 'Ogiltig eller saknad CSRF-token. Ladda om sidan och försök igen.'
+          : `Serverfel: ${response.status} ${response.statusText}`,
+        status: response.status
+      }
+    }
 
     if (response.ok && data.success && data.checkoutUrl) {
       // 🔍 DEBUG: Log successful session creation before redirect
