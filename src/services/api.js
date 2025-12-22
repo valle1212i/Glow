@@ -416,30 +416,67 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
         productsCount: data.products.length
       })
       
+      // Log first product structure to understand the data format
+      if (data.products.length > 0) {
+        console.log('📋 [STOREFRONT CHECKOUT] Sample product structure:', {
+          productKeys: Object.keys(data.products[0]),
+          hasVariants: 'variants' in data.products[0],
+          variantsType: typeof data.products[0].variants,
+          variantsIsArray: Array.isArray(data.products[0].variants),
+          sampleProduct: data.products[0]
+        })
+        
+        if (data.products[0].variants && Array.isArray(data.products[0].variants) && data.products[0].variants.length > 0) {
+          console.log('📋 [STOREFRONT CHECKOUT] Sample variant structure:', {
+            variantKeys: Object.keys(data.products[0].variants[0]),
+            sampleVariant: data.products[0].variants[0]
+          })
+        }
+      }
+      
       // Find product that has a variant with matching stripePriceId
+      // Try different possible field names for price ID
       for (const product of data.products) {
         if (product.variants && Array.isArray(product.variants)) {
           for (const variant of product.variants) {
-            if (variant.stripePriceId === stripePriceId) {
-              console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by stripePriceId:', variant.articleNumber)
-              return variant.articleNumber
+            // Try multiple possible field names
+            const variantPriceId = variant.stripePriceId || variant.priceId || variant.stripe_price_id || variant.price_id
+            if (variantPriceId === stripePriceId) {
+              const articleNumber = variant.articleNumber || variant.article_number || variant.sku
+              console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by stripePriceId:', articleNumber)
+              return articleNumber
             }
           }
         }
       }
       
       // If not found by priceId, try by productId
+      // Try different possible field names for product ID
       if (productId) {
         for (const product of data.products) {
-          if (product.productId === productId && product.variants && Array.isArray(product.variants)) {
+          const prodId = product.productId || product.product_id || product.id || product.stripeProductId
+          if (prodId === productId && product.variants && Array.isArray(product.variants)) {
             // Return first variant's articleNumber
-            if (product.variants.length > 0 && product.variants[0].articleNumber) {
-              console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by productId:', product.variants[0].articleNumber)
-              return product.variants[0].articleNumber
+            if (product.variants.length > 0) {
+              const variant = product.variants[0]
+              const articleNumber = variant.articleNumber || variant.article_number || variant.sku
+              if (articleNumber) {
+                console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by productId:', articleNumber)
+                return articleNumber
+              }
             }
           }
         }
       }
+      
+      // Log all products and their variants for debugging
+      console.log('🔍 [STOREFRONT CHECKOUT] All products and variants:', data.products.map(p => ({
+        productId: p.productId || p.product_id || p.id,
+        variants: p.variants?.map(v => ({
+          articleNumber: v.articleNumber || v.article_number || v.sku,
+          priceId: v.stripePriceId || v.priceId || v.stripe_price_id || v.price_id
+        })) || []
+      })))
       
       console.warn('⚠️ [STOREFRONT CHECKOUT] Could not find articleNumber in products:', {
         stripePriceId: stripePriceId,
