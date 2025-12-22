@@ -777,13 +777,25 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
         errorMessage = 'Produkten är tyvärr slutsåld. Vänligen ta bort den från varukorgen och försök igen.'
       } else if (errorMessage.includes('stock')) {
         errorMessage = 'Lagerproblem: ' + errorMessage
+      } else if (errorMessage.includes('customerId') && errorMessage.includes('required')) {
+        // Backend validation issue - customerId should be optional for guest checkouts
+        errorMessage = 'Ett tekniskt fel uppstod vid checkout. Vänligen kontakta support om problemet kvarstår.'
+        console.error('❌ [STOREFRONT CHECKOUT] Backend validation error - customerId required:', {
+          error: data.message || data.error,
+          note: 'This appears to be a backend validation issue. The endpoint should support guest checkouts without customerId.'
+        })
+      } else if (errorMessage.includes('Price ID mismatch')) {
+        errorMessage = 'Prisinformation matchar inte. Vänligen ladda om sidan och försök igen.'
+      } else if (errorMessage.includes('validation failed')) {
+        errorMessage = 'Valideringsfel: ' + errorMessage
       }
     }
     
     console.error('❌ [STOREFRONT CHECKOUT] Checkout failed:', {
       status: response.status,
       error: errorMessage,
-      data: data
+      data: data,
+      payload: payload
     })
 
     return {
