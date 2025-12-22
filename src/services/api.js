@@ -352,9 +352,10 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
  * Returns checkout session URL to redirect user to Stripe
  */
 /**
- * Fetch product details from storefront API to get articleNumber
+ * Fetch product details from storefront API to get articleNumber and correct stripePriceId
  * Looks up articleNumber by matching stripePriceId with product variants
  * Falls back to name-based matching if Stripe IDs don't match
+ * Returns both articleNumber and the correct stripePriceId from the API
  */
 const fetchProductArticleNumber = async (stripePriceId, productId, productName) => {
   if (!stripePriceId && !productId && !productName) {
@@ -453,12 +454,13 @@ const fetchProductArticleNumber = async (stripePriceId, productId, productName) 
             // API uses stripePriceId field directly
             if (variant.stripePriceId === stripePriceId) {
               const articleNumber = variant.articleNumber
+              const correctStripePriceId = variant.stripePriceId
               console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by stripePriceId:', {
                 articleNumber: articleNumber,
                 stripePriceId: stripePriceId,
                 productTitle: product.title
               })
-              return articleNumber
+              return { articleNumber, stripePriceId: correctStripePriceId }
             }
           }
         }
@@ -478,13 +480,15 @@ const fetchProductArticleNumber = async (stripePriceId, productId, productName) 
             if (product.variants.length > 0) {
               const variant = product.variants[0]
               const articleNumber = variant.articleNumber
+              const correctStripePriceId = variant.stripePriceId
               if (articleNumber) {
                 console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by productId:', {
                   articleNumber: articleNumber,
                   productId: productId,
-                  productTitle: product.title
+                  productTitle: product.title,
+                  correctStripePriceId: correctStripePriceId
                 })
-                return articleNumber
+                return { articleNumber, stripePriceId: correctStripePriceId }
               }
             }
           }
@@ -531,13 +535,15 @@ const fetchProductArticleNumber = async (stripePriceId, productId, productName) 
               const variant = product.variants[0]
               const articleNumber = variant.articleNumber
               
+              const correctStripePriceId = variant.stripePriceId
               if (articleNumber) {
                 console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by product name:', {
                   articleNumber: articleNumber,
                   productName: productName,
-                  matchedTitle: product.title
+                  matchedTitle: product.title,
+                  correctStripePriceId: correctStripePriceId
                 })
-                return articleNumber
+                return { articleNumber, stripePriceId: correctStripePriceId }
               }
             }
           }
@@ -571,6 +577,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   const itemsWithArticleNumbers = await Promise.all(
     cartItems.map(async (item) => {
       let articleNumber = item.articleNumber || item.variantId
+      let correctStripePriceId = getCheckoutPriceId(item) // Default to current price ID
       
       // If articleNumber is missing, try to fetch it from storefront API
       if (!articleNumber) {
@@ -581,10 +588,23 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
           stripePriceId: stripePriceId
         })
         
-        articleNumber = await fetchProductArticleNumber(stripePriceId, item.productId, item.name)
+        const result = await fetchProductArticleNumber(stripePriceId, item.productId, item.name)
         
-        if (articleNumber) {
-          console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber:', articleNumber)
+        if (result) {
+          // result can be either a string (articleNumber) or an object { articleNumber, stripePriceId }
+          if (typeof result === 'object' && result.articleNumber) {
+            articleNumber = result.articleNumber
+            correctStripePriceId = result.stripePriceId // Use the correct price ID from API
+            console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber and correct stripePriceId:', {
+              articleNumber: articleNumber,
+              stripePriceId: correctStripePriceId
+            })
+          } else if (typeof result === 'string') {
+            // Backward compatibility: if function returns just a string
+            articleNumber = result
+            console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber:', articleNumber)
+          }
+          
           // Update the item with articleNumber for future use
           item.articleNumber = articleNumber
         } else {
@@ -594,7 +614,8 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       
       return {
         ...item,
-        articleNumber: articleNumber
+        articleNumber: articleNumber,
+        correctStripePriceId: correctStripePriceId // Store the correct price ID
       }
     })
   )
@@ -603,6 +624,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   // Format: { variantId, quantity, stripePriceId, priceSEK }
   // IMPORTANT: variantId must be the articleNumber from the product variant (e.g., "VALJ-S-Black")
   // NOT productId (prod_xxx) or priceId (price_xxx)
+  // IMPORTANT: stripePriceId must match the variant's stripePriceId from the backend API
   const items = itemsWithArticleNumbers.map(item => {
     const variantId = item.articleNumber || item.variantId
     
@@ -616,10 +638,20 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       })
     }
     
+    // Use the correct stripePriceId from API if available, otherwise use campaign/regular price
+    const stripePriceId = item.correctStripePriceId || getCheckoutPriceId(item)
+    
+    console.log('📦 [STOREFRONT CHECKOUT] Item checkout data:', {
+      variantId: variantId,
+      stripePriceId: stripePriceId,
+      oldPriceId: item.priceId,
+      usingCorrectPriceId: !!item.correctStripePriceId
+    })
+    
     return {
-      variantId: variantId, // Must be articleNumber (e.g., "VALJ-S-Black"), not productId or priceId
+      variantId: variantId, // Must be articleNumber (e.g., "HYD1"), not productId or priceId
       quantity: item.quantity,
-      stripePriceId: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
+      stripePriceId: stripePriceId, // Use correct price ID from API if available
       priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
     }
   })
