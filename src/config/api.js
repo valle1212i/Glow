@@ -46,10 +46,12 @@ export const API_CONFIG = {
     
     // Storefront Checkout (New endpoint with shipping options, stock validation, order creation)
     // Public endpoint - no authentication required
-    STOREFRONT_CHECKOUT: (tenantId) =>
-      import.meta.env.PROD
-        ? `/storefront/${tenantId}/checkout`
-        : `/api/storefront/${tenantId}/checkout`
+    // Note: This endpoint is at /storefront/:tenant/checkout (not under /api)
+    // We call the backend directly since it's not under /api prefix
+    STOREFRONT_CHECKOUT: (tenantId) => {
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
+      return `${backendUrl}/storefront/${tenantId}/checkout`
+    }
   }
 }
 

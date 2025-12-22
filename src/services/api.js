@@ -383,8 +383,8 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     const csrfToken = await getCSRFToken()
     
     // Call backend storefront checkout endpoint
-    const checkoutEndpoint = API_CONFIG.ENDPOINTS.STOREFRONT_CHECKOUT(API_CONFIG.TENANT)
-    const checkoutUrl = `${API_CONFIG.BASE_URL}${checkoutEndpoint}`
+    // Note: STOREFRONT_CHECKOUT returns full backend URL (endpoint is not under /api)
+    const checkoutUrl = API_CONFIG.ENDPOINTS.STOREFRONT_CHECKOUT(API_CONFIG.TENANT)
     
     // Build headers with CSRF token and tenant
     const headers = {
