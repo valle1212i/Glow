@@ -357,12 +357,15 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
  */
 const fetchProductArticleNumber = async (stripePriceId, productId) => {
   if (!stripePriceId && !productId) {
+    console.warn('⚠️ [STOREFRONT CHECKOUT] Cannot fetch articleNumber: missing stripePriceId and productId')
     return null
   }
 
   try {
     // Try to fetch all products and find the one matching our priceId
     const productsUrl = API_CONFIG.ENDPOINTS.STOREFRONT_PRODUCTS(API_CONFIG.TENANT)
+    
+    console.log('🔍 [STOREFRONT CHECKOUT] Fetching products from:', productsUrl)
     
     const response = await fetch(productsUrl, {
       method: 'GET',
@@ -372,19 +375,53 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
       }
     })
 
+    console.log('📥 [STOREFRONT CHECKOUT] Products API response:', {
+      status: response.status,
+      ok: response.ok,
+      url: productsUrl
+    })
+
     if (!response.ok) {
-      console.warn(`Failed to fetch products: ${response.status}`)
+      console.warn(`❌ [STOREFRONT CHECKOUT] Failed to fetch products: ${response.status} ${response.statusText}`)
+      // Try to get error message
+      try {
+        const errorText = await response.text()
+        console.warn('Error response:', errorText)
+      } catch (e) {
+        // Ignore
+      }
+      return null
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      console.warn('❌ [STOREFRONT CHECKOUT] Products API returned non-JSON:', contentType)
       return null
     }
 
     const data = await response.json()
     
+    console.log('📦 [STOREFRONT CHECKOUT] Products API data structure:', {
+      hasSuccess: 'success' in data,
+      hasProducts: 'products' in data,
+      productsIsArray: Array.isArray(data.products),
+      productsCount: Array.isArray(data.products) ? data.products.length : 0,
+      dataKeys: Object.keys(data)
+    })
+    
     if (data.success && data.products && Array.isArray(data.products)) {
+      console.log('🔍 [STOREFRONT CHECKOUT] Searching for articleNumber:', {
+        stripePriceId: stripePriceId,
+        productId: productId,
+        productsCount: data.products.length
+      })
+      
       // Find product that has a variant with matching stripePriceId
       for (const product of data.products) {
         if (product.variants && Array.isArray(product.variants)) {
           for (const variant of product.variants) {
             if (variant.stripePriceId === stripePriceId) {
+              console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by stripePriceId:', variant.articleNumber)
               return variant.articleNumber
             }
           }
@@ -397,16 +434,30 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
           if (product.productId === productId && product.variants && Array.isArray(product.variants)) {
             // Return first variant's articleNumber
             if (product.variants.length > 0 && product.variants[0].articleNumber) {
+              console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by productId:', product.variants[0].articleNumber)
               return product.variants[0].articleNumber
             }
           }
         }
       }
+      
+      console.warn('⚠️ [STOREFRONT CHECKOUT] Could not find articleNumber in products:', {
+        stripePriceId: stripePriceId,
+        productId: productId,
+        searchedProducts: data.products.length
+      })
+    } else {
+      console.warn('⚠️ [STOREFRONT CHECKOUT] Unexpected products API response format:', {
+        success: data.success,
+        hasProducts: 'products' in data,
+        productsType: typeof data.products,
+        data: data
+      })
     }
     
     return null
   } catch (error) {
-    console.warn('Failed to fetch articleNumber:', error)
+    console.error('❌ [STOREFRONT CHECKOUT] Failed to fetch articleNumber:', error)
     return null
   }
 }
