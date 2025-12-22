@@ -354,10 +354,11 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
 /**
  * Fetch product details from storefront API to get articleNumber
  * Looks up articleNumber by matching stripePriceId with product variants
+ * Falls back to name-based matching if Stripe IDs don't match
  */
-const fetchProductArticleNumber = async (stripePriceId, productId) => {
-  if (!stripePriceId && !productId) {
-    console.warn('⚠️ [STOREFRONT CHECKOUT] Cannot fetch articleNumber: missing stripePriceId and productId')
+const fetchProductArticleNumber = async (stripePriceId, productId, productName) => {
+  if (!stripePriceId && !productId && !productName) {
+    console.warn('⚠️ [STOREFRONT CHECKOUT] Cannot fetch articleNumber: missing stripePriceId, productId, and productName')
     return null
   }
 
@@ -510,9 +511,43 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
         })) || []
       })))
       
+      // Fallback: Try to match by product name/title if Stripe IDs don't match
+      // This handles cases where frontend has old/different Stripe IDs
+      if (productName) {
+        console.log('🔍 [STOREFRONT CHECKOUT] Stripe IDs don\'t match, trying name-based matching:', productName)
+        
+        // Normalize product name for comparison (lowercase, trim)
+        const normalizedSearchName = productName.toLowerCase().trim()
+        
+        for (const product of data.products) {
+          const normalizedProductTitle = product.title?.toLowerCase().trim()
+          
+          // Try exact match or contains match
+          if (normalizedProductTitle === normalizedSearchName || 
+              normalizedProductTitle?.includes(normalizedSearchName) ||
+              normalizedSearchName.includes(normalizedProductTitle)) {
+            
+            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+              const variant = product.variants[0]
+              const articleNumber = variant.articleNumber
+              
+              if (articleNumber) {
+                console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber by product name:', {
+                  articleNumber: articleNumber,
+                  productName: productName,
+                  matchedTitle: product.title
+                })
+                return articleNumber
+              }
+            }
+          }
+        }
+      }
+      
       console.warn('⚠️ [STOREFRONT CHECKOUT] Could not find articleNumber in products:', {
         stripePriceId: stripePriceId,
         productId: productId,
+        productName: productName,
         searchedProducts: data.products.length
       })
     } else {
@@ -546,7 +581,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
           stripePriceId: stripePriceId
         })
         
-        articleNumber = await fetchProductArticleNumber(stripePriceId, item.productId)
+        articleNumber = await fetchProductArticleNumber(stripePriceId, item.productId, item.name)
         
         if (articleNumber) {
           console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber:', articleNumber)
