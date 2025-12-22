@@ -351,17 +351,59 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
  * Uses new storefront checkout endpoint with shipping options, stock validation, and order creation
  * Returns checkout session URL to redirect user to Stripe
  */
+/**
+ * Fetch product details from storefront API to get articleNumber
+ * This is a helper function to look up articleNumber from stripePriceId
+ */
+const fetchProductArticleNumber = async (stripePriceId) => {
+  try {
+    const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
+    // Try to fetch product by priceId - this endpoint may need to be confirmed with backend team
+    // For now, return null and let the checkout fail with a clear error
+    return null
+  } catch (error) {
+    console.warn('Failed to fetch articleNumber:', error)
+    return null
+  }
+}
+
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   // Convert cart items to new storefront checkout format
   // Format: { variantId, quantity, stripePriceId, priceSEK }
-  // Note: variantId should match the product/variant ID in the backend database
-  // For products without variants, we use the productId directly (Stripe product ID)
-  const items = cartItems.map(item => ({
-    variantId: item.variantId || item.productId || `product-${item.id}`, // Use productId directly (matches inventory API format)
-    quantity: item.quantity,
-    stripePriceId: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
-    priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
-  }))
+  // IMPORTANT: variantId must be the articleNumber from the product variant (e.g., "VALJ-S-Black")
+  // NOT productId (prod_xxx) or priceId (price_xxx)
+  const items = cartItems.map(item => {
+    // variantId must be articleNumber from product variant
+    const variantId = item.articleNumber || item.variantId
+    
+    if (!variantId) {
+      console.error('❌ [STOREFRONT CHECKOUT] Missing articleNumber for item:', {
+        itemId: item.id,
+        productId: item.productId,
+        priceId: item.priceId,
+        name: item.name,
+        note: 'Products must include articleNumber field. Fetch from /storefront/:tenant/products or /storefront/:tenant/product/:productId'
+      })
+    }
+    
+    return {
+      variantId: variantId, // Must be articleNumber (e.g., "VALJ-S-Black"), not productId or priceId
+      quantity: item.quantity,
+      stripePriceId: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
+      priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
+    }
+  })
+  
+  // Validate that all items have variantId (articleNumber)
+  const missingVariantIds = items.filter(item => !item.variantId)
+  if (missingVariantIds.length > 0) {
+    console.error('❌ [STOREFRONT CHECKOUT] Some items are missing articleNumber:', missingVariantIds)
+    return {
+      success: false,
+      error: 'Några produkter saknar artikelnummer (articleNumber). Produkter måste inkludera articleNumber från produktvarianten. Hämta från /storefront/:tenant/products eller lägg till manuellt.',
+      status: 400
+    }
+  }
 
   // Build payload for storefront checkout endpoint
   const payload = {

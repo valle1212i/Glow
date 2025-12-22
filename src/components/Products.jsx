@@ -9,6 +9,10 @@ const Products = () => {
   const { addToCart } = useCart()
   const [inventoryData, setInventoryData] = useState({})
 
+  // TODO: Products need articleNumber for checkout to work
+  // articleNumber should be fetched from /storefront/:tenant/products or /storefront/:tenant/product/:productId
+  // Example: { articleNumber: "VALJ-S-Black", ... }
+  // For now, add articleNumber manually to each product below
   const hairProducts = [
     {
       id: 1,
@@ -17,7 +21,8 @@ const Products = () => {
       price: 349, // SEK
       image: '/glowvolumeschamppoo.png',
       productId: 'prod_TPyEGCJUN8hjjP',
-      priceId: 'price_1ST8INP6vvUUervCyRnKqKzU'
+      priceId: 'price_1ST8INP6vvUUervCyRnKqKzU',
+      articleNumber: null // TODO: Add articleNumber from storefront API (e.g., "VALJ-S-Black")
     },
     {
       id: 2,
@@ -26,7 +31,8 @@ const Products = () => {
       price: 479, // SEK
       image: '/twobottles.png',
       productId: 'prod_TPyF74HUAMTa5M',
-      priceId: 'price_1ST8JQP6vvUUervC7t34RVoE'
+      priceId: 'price_1ST8JQP6vvUUervC7t34RVoE',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 3,
@@ -35,7 +41,8 @@ const Products = () => {
       price: 199, // SEK
       image: '/showerbottle.png',
       productId: 'prod_TPyG479iBgxuPf',
-      priceId: 'price_1ST8KJP6vvUUervCuPav8iwH'
+      priceId: 'price_1ST8KJP6vvUUervCuPav8iwH',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 4,
@@ -44,7 +51,8 @@ const Products = () => {
       price: 249, // SEK
       image: '/bottleisclean.png',
       productId: 'prod_TPyIf38nsbuiKs',
-      priceId: 'price_1ST8M9P6vvUUervC1eUgI0Hp'
+      priceId: 'price_1ST8M9P6vvUUervC1eUgI0Hp',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 5,
@@ -53,7 +61,8 @@ const Products = () => {
       price: 289, // SEK
       image: '/lotion.png',
       productId: 'prod_TPyJN5BCqOrXZC',
-      priceId: 'price_1ST8MpP6vvUUervCN1dU34rM'
+      priceId: 'price_1ST8MpP6vvUUervCN1dU34rM',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 6,
@@ -62,7 +71,8 @@ const Products = () => {
       price: 499, // SEK
       image: '/showerbottle.png',
       productId: 'prod_TPyK9y02nYbvrk',
-      priceId: 'price_1ST8NcP6vvUUervC8ivVHW9p'
+      priceId: 'price_1ST8NcP6vvUUervC8ivVHW9p',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 7,
@@ -71,7 +81,8 @@ const Products = () => {
       price: 279, // SEK
       image: '/shower.png',
       productId: 'prod_TPyLq0IPNEJdOH',
-      priceId: 'price_1ST8OeP6vvUUervCm1YNFPLS'
+      priceId: 'price_1ST8OeP6vvUUervCm1YNFPLS',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     },
     {
       id: 8,
@@ -80,7 +91,8 @@ const Products = () => {
       price: 329, // SEK
       image: '/seasalt.png',
       productId: 'prod_TPyMI03ik6NFBX',
-      priceId: 'price_1ST8PNP6vvUUervCH0SDRr6k'
+      priceId: 'price_1ST8PNP6vvUUervCH0SDRr6k',
+      articleNumber: null // TODO: Add articleNumber from storefront API
     }
   ]
 
