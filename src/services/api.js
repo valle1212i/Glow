@@ -354,8 +354,10 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   // Convert cart items to new storefront checkout format
   // Format: { variantId, quantity, stripePriceId, priceSEK }
+  // Note: variantId should match the product/variant ID in the backend database
+  // For products without variants, we use the productId directly (Stripe product ID)
   const items = cartItems.map(item => ({
-    variantId: item.variantId || `PRODUCT-${item.productId || item.id}`, // Fallback format if variantId not provided
+    variantId: item.variantId || item.productId || `product-${item.id}`, // Use productId directly (matches inventory API format)
     quantity: item.quantity,
     stripePriceId: getCheckoutPriceId(item), // Use campaign price if available, otherwise regular price
     priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
@@ -371,11 +373,17 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
   }
 
   try {
-    // 🔍 DEBUG: Log checkout initiation
+    // 🔍 DEBUG: Log checkout initiation with item details
     console.log('🛒 [STOREFRONT CHECKOUT] Initiating checkout session:', {
       cartItemsCount: cartItems.length,
       itemsCount: items.length,
       tenant: API_CONFIG.TENANT,
+      items: items.map(item => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        stripePriceId: item.stripePriceId,
+        priceSEK: item.priceSEK
+      })),
       timestamp: new Date().toISOString()
     })
 
