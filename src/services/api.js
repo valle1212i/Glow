@@ -453,10 +453,30 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       return { success: true }
     }
 
-    // Handle errors
+    // Handle errors - extract error message from response
+    let errorMessage = 'Kunde inte skapa checkout-session. Försök igen.'
+    
+    if (data) {
+      // Try different error message fields
+      errorMessage = data.error || data.message || data.errorMessage || errorMessage
+      
+      // Handle specific error types
+      if (errorMessage.includes('Out of stock') || errorMessage.includes('out of stock')) {
+        errorMessage = 'Produkten är tyvärr slutsåld. Vänligen ta bort den från varukorgen och försök igen.'
+      } else if (errorMessage.includes('stock')) {
+        errorMessage = 'Lagerproblem: ' + errorMessage
+      }
+    }
+    
+    console.error('❌ [STOREFRONT CHECKOUT] Checkout failed:', {
+      status: response.status,
+      error: errorMessage,
+      data: data
+    })
+
     return {
       success: false,
-      error: data.error || data.message || 'Kunde inte skapa checkout-session. Försök igen.',
+      error: errorMessage,
       status: response.status
     }
   } catch (error) {
