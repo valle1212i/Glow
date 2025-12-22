@@ -416,6 +416,9 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
         productsCount: data.products.length
       })
       
+      // Log the FULL API response to see what we're working with
+      console.log('📦 [STOREFRONT CHECKOUT] FULL API RESPONSE:', JSON.stringify(data, null, 2))
+      
       // Log first product structure to understand the data format
       if (data.products.length > 0) {
         console.log('📋 [STOREFRONT CHECKOUT] Sample product structure:', {
@@ -423,13 +426,18 @@ const fetchProductArticleNumber = async (stripePriceId, productId) => {
           hasVariants: 'variants' in data.products[0],
           variantsType: typeof data.products[0].variants,
           variantsIsArray: Array.isArray(data.products[0].variants),
-          sampleProduct: data.products[0]
+          sampleProduct: JSON.stringify(data.products[0], null, 2)
         })
         
         if (data.products[0].variants && Array.isArray(data.products[0].variants) && data.products[0].variants.length > 0) {
           console.log('📋 [STOREFRONT CHECKOUT] Sample variant structure:', {
             variantKeys: Object.keys(data.products[0].variants[0]),
-            sampleVariant: data.products[0].variants[0]
+            sampleVariant: JSON.stringify(data.products[0].variants[0], null, 2)
+          })
+        } else {
+          console.warn('⚠️ [STOREFRONT CHECKOUT] First product has no variants or variants is not an array:', {
+            product: data.products[0],
+            variants: data.products[0].variants
           })
         }
       }
