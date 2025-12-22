@@ -51,6 +51,17 @@ export const API_CONFIG = {
     STOREFRONT_CHECKOUT: (tenantId) => {
       const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
       return `${backendUrl}/storefront/${tenantId}/checkout`
+    },
+    
+    // Storefront Products (to fetch articleNumber for products)
+    // Public endpoint - no authentication required
+    STOREFRONT_PRODUCTS: (tenantId) => {
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
+      return `${backendUrl}/storefront/${tenantId}/products`
+    },
+    STOREFRONT_PRODUCT: (tenantId, productId) => {
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
+      return `${backendUrl}/storefront/${tenantId}/product/${productId}`
     }
   }
 }

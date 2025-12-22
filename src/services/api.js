@@ -353,13 +353,57 @@ export const getCampaignPrice = async (productId, regularPriceId) => {
  */
 /**
  * Fetch product details from storefront API to get articleNumber
- * This is a helper function to look up articleNumber from stripePriceId
+ * Looks up articleNumber by matching stripePriceId with product variants
  */
-const fetchProductArticleNumber = async (stripePriceId) => {
+const fetchProductArticleNumber = async (stripePriceId, productId) => {
+  if (!stripePriceId && !productId) {
+    return null
+  }
+
   try {
-    const backendUrl = import.meta.env.VITE_API_URL || 'https://source-database-809785351172.europe-north1.run.app'
-    // Try to fetch product by priceId - this endpoint may need to be confirmed with backend team
-    // For now, return null and let the checkout fail with a clear error
+    // Try to fetch all products and find the one matching our priceId
+    const productsUrl = API_CONFIG.ENDPOINTS.STOREFRONT_PRODUCTS(API_CONFIG.TENANT)
+    
+    const response = await fetch(productsUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': API_CONFIG.TENANT
+      }
+    })
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch products: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    
+    if (data.success && data.products && Array.isArray(data.products)) {
+      // Find product that has a variant with matching stripePriceId
+      for (const product of data.products) {
+        if (product.variants && Array.isArray(product.variants)) {
+          for (const variant of product.variants) {
+            if (variant.stripePriceId === stripePriceId) {
+              return variant.articleNumber
+            }
+          }
+        }
+      }
+      
+      // If not found by priceId, try by productId
+      if (productId) {
+        for (const product of data.products) {
+          if (product.productId === productId && product.variants && Array.isArray(product.variants)) {
+            // Return first variant's articleNumber
+            if (product.variants.length > 0 && product.variants[0].articleNumber) {
+              return product.variants[0].articleNumber
+            }
+          }
+        }
+      }
+    }
+    
     return null
   } catch (error) {
     console.warn('Failed to fetch articleNumber:', error)
@@ -368,12 +412,43 @@ const fetchProductArticleNumber = async (stripePriceId) => {
 }
 
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
+  // First, try to fetch missing articleNumbers from storefront API
+  const itemsWithArticleNumbers = await Promise.all(
+    cartItems.map(async (item) => {
+      let articleNumber = item.articleNumber || item.variantId
+      
+      // If articleNumber is missing, try to fetch it from storefront API
+      if (!articleNumber) {
+        const stripePriceId = getCheckoutPriceId(item)
+        console.log('🔍 [STOREFRONT CHECKOUT] Fetching articleNumber for item:', {
+          name: item.name,
+          productId: item.productId,
+          stripePriceId: stripePriceId
+        })
+        
+        articleNumber = await fetchProductArticleNumber(stripePriceId, item.productId)
+        
+        if (articleNumber) {
+          console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber:', articleNumber)
+          // Update the item with articleNumber for future use
+          item.articleNumber = articleNumber
+        } else {
+          console.warn('⚠️ [STOREFRONT CHECKOUT] Could not fetch articleNumber for item:', item.name)
+        }
+      }
+      
+      return {
+        ...item,
+        articleNumber: articleNumber
+      }
+    })
+  )
+  
   // Convert cart items to new storefront checkout format
   // Format: { variantId, quantity, stripePriceId, priceSEK }
   // IMPORTANT: variantId must be the articleNumber from the product variant (e.g., "VALJ-S-Black")
   // NOT productId (prod_xxx) or priceId (price_xxx)
-  const items = cartItems.map(item => {
-    // variantId must be articleNumber from product variant
+  const items = itemsWithArticleNumbers.map(item => {
     const variantId = item.articleNumber || item.variantId
     
     if (!variantId) {
