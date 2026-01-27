@@ -572,7 +572,7 @@ const fetchProductArticleNumber = async (stripePriceId, productId, productName) 
   }
 }
 
-export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
+export const createCheckoutSession = async (cartItems, getCheckoutPriceId, giftCardCode = null) => {
   // First, try to fetch missing articleNumbers from storefront API
   const itemsWithArticleNumbers = await Promise.all(
     cartItems.map(async (item) => {
@@ -582,7 +582,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       // If articleNumber is missing, try to fetch it from storefront API
       if (!articleNumber) {
         const stripePriceId = getCheckoutPriceId(item)
-        console.log('🔍 [STOREFRONT CHECKOUT] Fetching articleNumber for item:', {
+        console.log('🔍 [STRIPE CONNECT] Fetching articleNumber for item:', {
           name: item.name,
           productId: item.productId,
           stripePriceId: stripePriceId
@@ -595,20 +595,20 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
           if (typeof result === 'object' && result.articleNumber) {
             articleNumber = result.articleNumber
             correctStripePriceId = result.stripePriceId // Use the correct price ID from API
-            console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber and correct stripePriceId:', {
+            console.log('✅ [STRIPE CONNECT] Found articleNumber and correct stripePriceId:', {
               articleNumber: articleNumber,
               stripePriceId: correctStripePriceId
             })
           } else if (typeof result === 'string') {
             // Backward compatibility: if function returns just a string
             articleNumber = result
-            console.log('✅ [STOREFRONT CHECKOUT] Found articleNumber:', articleNumber)
+            console.log('✅ [STRIPE CONNECT] Found articleNumber:', articleNumber)
           }
           
           // Update the item with articleNumber for future use
           item.articleNumber = articleNumber
         } else {
-          console.warn('⚠️ [STOREFRONT CHECKOUT] Could not fetch articleNumber for item:', item.name)
+          console.warn('⚠️ [STRIPE CONNECT] Could not fetch articleNumber for item:', item.name)
         }
       }
       
@@ -620,100 +620,90 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     })
   )
   
-  // Convert cart items to new storefront checkout format
-  // Format: { variantId, quantity, stripePriceId, priceSEK }
-  // IMPORTANT: variantId must be the articleNumber from the product variant (e.g., "VALJ-S-Black")
-  // NOT productId (prod_xxx) or priceId (price_xxx)
-  // IMPORTANT: stripePriceId must match the variant's stripePriceId from the backend API
+  // Convert cart items to Stripe Connect checkout format
+  // Format: { quantity, stripePriceId, productId?, variantKey?, type? }
+  // The tenant backend will handle inventory validation, campaign price checking, and data transformation
   const items = itemsWithArticleNumbers.map(item => {
-    const variantId = item.articleNumber || item.variantId
+    const variantKey = item.articleNumber || item.variantId
     
-    if (!variantId) {
-      console.error('❌ [STOREFRONT CHECKOUT] Missing articleNumber for item:', {
+    if (!variantKey) {
+      console.error('❌ [STRIPE CONNECT] Missing articleNumber for item:', {
         itemId: item.id,
         productId: item.productId,
         priceId: item.priceId,
         name: item.name,
-        note: 'Products must include articleNumber field. Fetch from /storefront/:tenant/products or /storefront/:tenant/product/:productId'
+        note: 'Products should include articleNumber field. Fetch from /storefront/:tenant/products or /storefront/:tenant/product/:productId'
       })
     }
     
     // Use the correct stripePriceId from API if available, otherwise use campaign/regular price
     const stripePriceId = item.correctStripePriceId || getCheckoutPriceId(item)
     
-    console.log('📦 [STOREFRONT CHECKOUT] Item checkout data:', {
-      variantId: variantId,
+    console.log('📦 [STRIPE CONNECT] Item checkout data:', {
+      variantKey: variantKey,
       stripePriceId: stripePriceId,
+      productId: item.productId,
       oldPriceId: item.priceId,
       usingCorrectPriceId: !!item.correctStripePriceId
     })
     
     return {
-      variantId: variantId, // Must be articleNumber (e.g., "HYD1"), not productId or priceId
       quantity: item.quantity,
       stripePriceId: stripePriceId, // Use correct price ID from API if available
-      priceSEK: Math.round(item.price * 100) // Convert SEK to öre (cents)
+      productId: item.productId, // Include productId for inventory validation and campaign price checking
+      variantKey: variantKey // Include variantKey (articleNumber) for backend transformation
     }
   })
   
-  // Validate that all items have variantId (articleNumber)
-  const missingVariantIds = items.filter(item => !item.variantId)
-  if (missingVariantIds.length > 0) {
-    console.error('❌ [STOREFRONT CHECKOUT] Some items are missing articleNumber:', missingVariantIds)
+  // Validate that all items have variantKey (articleNumber) or productId
+  const missingIdentifiers = items.filter(item => !item.variantKey && !item.productId)
+  if (missingIdentifiers.length > 0) {
+    console.error('❌ [STRIPE CONNECT] Some items are missing identifiers:', missingIdentifiers)
     return {
       success: false,
-      error: 'Några produkter saknar artikelnummer (articleNumber). Produkter måste inkludera articleNumber från produktvarianten. Hämta från /storefront/:tenant/products eller lägg till manuellt.',
+      error: 'Några produkter saknar identifierare. Produkter måste inkludera articleNumber eller productId.',
       status: 400
     }
   }
 
-  // Build payload for storefront checkout endpoint
+  // Build payload for tenant backend checkout endpoint
+  // The tenant backend will handle inventory validation, campaign price checking, and forwarding to Source Portal
   const payload = {
     items: items,
     successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${window.location.origin}/checkout/cancel`
-    // customerEmail is optional - Stripe will collect it if not provided
-    // recipientAddress is optional - can be added for PostNord dynamic rates
+    cancelUrl: `${window.location.origin}/checkout/cancel`,
+    ...(giftCardCode && { giftCardCode: giftCardCode }), // Include gift card code if provided
+    metadata: {
+      ...(giftCardCode && { giftCardCode: giftCardCode }) // Also include in metadata as backup
+    }
   }
 
   try {
     // 🔍 DEBUG: Log checkout initiation with item details
-    console.log('🛒 [STOREFRONT CHECKOUT] Initiating checkout session:', {
+    console.log('🛒 [STRIPE CONNECT] Initiating checkout session via tenant backend:', {
       cartItemsCount: cartItems.length,
       itemsCount: items.length,
       tenant: API_CONFIG.TENANT,
+      hasGiftCardCode: !!giftCardCode,
       items: items.map(item => ({
-        variantId: item.variantId,
+        variantKey: item.variantKey,
+        productId: item.productId,
         quantity: item.quantity,
-        stripePriceId: item.stripePriceId,
-        priceSEK: item.priceSEK
+        stripePriceId: item.stripePriceId
       })),
       timestamp: new Date().toISOString()
     })
 
-    // Get CSRF token for POST request
-    const csrfToken = await getCSRFToken()
-    
-    // Call backend storefront checkout endpoint
-    // Note: STOREFRONT_CHECKOUT returns full backend URL (endpoint is not under /api)
-    const checkoutUrl = API_CONFIG.ENDPOINTS.STOREFRONT_CHECKOUT(API_CONFIG.TENANT)
-    
-    // Build headers with CSRF token and tenant
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-Tenant': API_CONFIG.TENANT
-    }
-    
-    // Add CSRF token if available
-    if (csrfToken) {
-      headers['X-CSRF-Token'] = csrfToken
-    } else {
-      console.warn('⚠️ [STOREFRONT CHECKOUT] CSRF token is empty, request may fail if backend requires it')
-    }
+    // Call tenant backend checkout endpoint (/api/checkout)
+    // This endpoint handles inventory validation, campaign price checking, gift card handling,
+    // and forwards to Source Portal backend endpoint /storefront/{tenant}/checkout
+    const checkoutUrl = `${API_CONFIG.BASE_URL}/checkout`
     
     const response = await fetch(checkoutUrl, {
       method: 'POST',
-      headers: headers,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       credentials: 'include', // Include cookies for session
       body: JSON.stringify(payload)
     })
@@ -728,7 +718,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       } catch (parseError) {
         // If JSON parsing fails, try to get error message from text
         const text = await response.text()
-        console.error('❌ [STOREFRONT CHECKOUT] Failed to parse JSON response:', parseError)
+        console.error('❌ [STRIPE CONNECT] Failed to parse JSON response:', parseError)
         return {
           success: false,
           error: `Ogiltigt svar från servern (${response.status})`,
@@ -738,30 +728,30 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
     } else {
       // Non-JSON response (likely HTML error page)
       const text = await response.text()
-      console.error(`❌ [STOREFRONT CHECKOUT] Server returned non-JSON (${contentType}): ${response.status}`)
+      console.error(`❌ [STRIPE CONNECT] Server returned non-JSON (${contentType}): ${response.status}`)
       return {
         success: false,
-        error: response.status === 403 
-          ? 'Ogiltig eller saknad CSRF-token. Ladda om sidan och försök igen.'
-          : `Serverfel: ${response.status} ${response.statusText}`,
+        error: `Serverfel: ${response.status} ${response.statusText}`,
         status: response.status
       }
     }
 
-    if (response.ok && data.success && data.checkoutUrl) {
+    // Handle successful response (checkoutUrl or url)
+    const checkoutUrl = data.checkoutUrl || data.url
+    if (response.ok && data.success && checkoutUrl) {
       // 🔍 DEBUG: Log successful session creation before redirect
-      console.log('✅ [STOREFRONT CHECKOUT] Checkout session created successfully:', {
+      console.log('✅ [STRIPE CONNECT] Checkout session created successfully:', {
         sessionId: data.sessionId,
         orderId: data.orderId,
-        checkoutUrl: data.checkoutUrl.substring(0, 50) + '...',
+        checkoutUrl: checkoutUrl.substring(0, 50) + '...',
         expiresAt: data.expiresAt,
         redirecting: true,
         timestamp: new Date().toISOString()
       })
-      console.log('📊 [STOREFRONT CHECKOUT] Features: Shipping options, stock validation, order creation')
+      console.log('📊 [STRIPE CONNECT] Features: Inventory validation, campaign prices, gift cards, shipping options, order creation')
       
       // Redirect to Stripe checkout
-      window.location.href = data.checkoutUrl
+      window.location.href = checkoutUrl
       return { success: true }
     }
 
@@ -773,14 +763,14 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       errorMessage = data.error || data.message || data.errorMessage || errorMessage
       
       // Handle specific error types
-      if (errorMessage.includes('Out of stock') || errorMessage.includes('out of stock')) {
+      if (errorMessage.includes('Out of stock') || errorMessage.includes('out of stock') || errorMessage.includes('is out of stock')) {
         errorMessage = 'Produkten är tyvärr slutsåld. Vänligen ta bort den från varukorgen och försök igen.'
-      } else if (errorMessage.includes('stock')) {
+      } else if (errorMessage.includes('stock') || errorMessage.includes('Insufficient stock')) {
         errorMessage = 'Lagerproblem: ' + errorMessage
       } else if (errorMessage.includes('customerId') && errorMessage.includes('required')) {
         // Backend validation issue - customerId should be optional for guest checkouts
         errorMessage = 'Ett tekniskt fel uppstod vid checkout. Vänligen kontakta support om problemet kvarstår.'
-        console.error('❌ [STOREFRONT CHECKOUT] Backend validation error - customerId required:', {
+        console.error('❌ [STRIPE CONNECT] Backend validation error - customerId required:', {
           error: data.message || data.error,
           note: 'This appears to be a backend validation issue. The endpoint should support guest checkouts without customerId.'
         })
@@ -791,7 +781,7 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       }
     }
     
-    console.error('❌ [STOREFRONT CHECKOUT] Checkout failed:', {
+    console.error('❌ [STRIPE CONNECT] Checkout failed:', {
       status: response.status,
       error: errorMessage,
       data: data,
@@ -804,11 +794,76 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId) => {
       status: response.status
     }
   } catch (error) {
-    console.error('❌ [STOREFRONT CHECKOUT] Checkout failed:', error)
+    console.error('❌ [STRIPE CONNECT] Checkout failed:', error)
     return {
       success: false,
       error: 'Ett fel uppstod vid checkout. Försök igen.',
       status: 500
+    }
+  }
+}
+
+/**
+ * Verify gift card code (read-only)
+ * See: Backend_Implementation_for_New_Customers.md - Gift Cards section
+ * @param {string} code - Gift card code
+ * @returns {Promise<Object>} Verification result with balance and validity
+ */
+export const verifyGiftCard = async (code) => {
+  if (!code || typeof code !== 'string') {
+    return {
+      success: false,
+      valid: false,
+      error: 'Gift card code is required'
+    }
+  }
+
+  try {
+    const formattedCode = code.toUpperCase().trim()
+    
+    const response = await fetch(`${API_CONFIG.BASE_URL}/gift-cards/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({ code: formattedCode })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      return {
+        success: false,
+        valid: false,
+        error: data.error || data.message || 'Failed to verify gift card'
+      }
+    }
+
+    if (!data.valid) {
+      return {
+        success: true,
+        valid: false,
+        error: data.error || 'Invalid gift card code'
+      }
+    }
+
+    // Convert balance from cents to SEK for display
+    const balanceInSEK = (data.balance || 0) / 100
+
+    return {
+      success: true,
+      valid: true,
+      balance: balanceInSEK, // Balance in SEK
+      balanceInCents: data.balance, // Balance in cents (for checkout)
+      expiresAt: data.expiresAt || null
+    }
+  } catch (error) {
+    console.error('❌ [GIFT CARD] Error verifying gift card:', error)
+    return {
+      success: false,
+      valid: false,
+      error: 'Failed to verify gift card. Please try again.'
     }
   }
 }

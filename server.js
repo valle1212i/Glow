@@ -192,6 +192,370 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 })
 
+// Stripe Connect Checkout Endpoint (Tenant Backend)
+// This endpoint handles inventory validation, campaign price checking, gift card handling,
+// and forwards to Source Portal backend endpoint /storefront/{tenant}/checkout
+// See: Backend_Implementation_for_New_Customers.md - Stripe Connect Implementation
+app.post('/api/checkout', async (req, res) => {
+  try {
+    const {
+      items,
+      customerEmail,
+      successUrl,
+      cancelUrl,
+      giftCardCode,
+      metadata: requestMetadata = {}
+    } = req.body
+
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Items are required' 
+      })
+    }
+
+    if (!successUrl || !cancelUrl) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'successUrl and cancelUrl are required' 
+      })
+    }
+
+    console.log('🛒 [STRIPE CONNECT] Checkout request received:', {
+      itemsCount: items.length,
+      hasGiftCardCode: !!giftCardCode,
+      tenant: TENANT
+    })
+
+    // Extract gift card code (from direct property or metadata)
+    const giftCardCodeToUse = giftCardCode || requestMetadata.giftCardCode
+
+    // Validate gift card code format if provided
+    if (giftCardCodeToUse && typeof giftCardCodeToUse !== 'string') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid gift card code format' 
+      })
+    }
+
+    // Step 1: Validate inventory for each product (skip gift cards)
+    for (const item of items) {
+      // Skip inventory check for gift cards
+      if (item.type === 'gift_card') continue
+
+      // Check inventory via public API endpoint
+      if (item.productId) {
+        try {
+          const inventoryUrl = `${BACKEND_URL}/api/inventory/public/${TENANT}/${item.productId}`
+          const inventoryResponse = await fetch(inventoryUrl, {
+            headers: {
+              'X-Tenant': TENANT
+            }
+          })
+
+          if (inventoryResponse.ok) {
+            const inventoryData = await inventoryResponse.json()
+            
+            if (inventoryData.success && inventoryData.found && inventoryData.inventory) {
+              const inventory = inventoryData.inventory
+              
+              // Check if product is out of stock
+              if (inventory.outOfStock || inventory.status === 'out_of_stock') {
+                return res.status(400).json({
+                  success: false,
+                  error: `Product ${inventory.name || item.productId} is out of stock`
+                })
+              }
+
+              // Check if quantity exceeds available stock
+              if (inventory.stock !== null && inventory.stock < item.quantity) {
+                return res.status(400).json({
+                  success: false,
+                  error: `Insufficient stock for ${inventory.name || item.productId}. Available: ${inventory.stock}, Requested: ${item.quantity}`
+                })
+              }
+            }
+          }
+        } catch (inventoryError) {
+          console.warn('⚠️ [STRIPE CONNECT] Inventory check failed (continuing anyway):', inventoryError.message)
+          // Continue with checkout even if inventory check fails (graceful degradation)
+        }
+      }
+    }
+
+    // Step 2: Check campaign prices and build backend items
+    const backendItems = await Promise.all(
+      items.map(async (item, index) => {
+        let priceId = item.stripePriceId
+
+        // Check campaign price if productId is available
+        if (item.productId && item.stripePriceId) {
+          try {
+            // Get Stripe Product ID from Storefront API if needed
+            let apiProductId = item.productId
+            
+            // Try to get product from storefront API to get stripeProductId
+            try {
+              const productUrl = `${BACKEND_URL}/storefront/${TENANT}/product/${item.productId}`
+              const productResponse = await fetch(productUrl, {
+                headers: {
+                  'X-Tenant': TENANT
+                }
+              })
+
+              if (productResponse.ok) {
+                const productData = await productResponse.json()
+                if (productData.success && productData.product?.stripeProductId) {
+                  apiProductId = productData.product.stripeProductId
+                }
+              }
+            } catch (productError) {
+              console.warn('⚠️ [STRIPE CONNECT] Could not fetch product details, using productId:', productError.message)
+            }
+
+            // Check campaign price from Source Portal API
+            const campaignUrl = `${BACKEND_URL}/api/campaigns/price/${apiProductId}?originalPriceId=${encodeURIComponent(item.stripePriceId)}&tenant=${TENANT}`
+            const campaignResponse = await fetch(campaignUrl, {
+              headers: {
+                'X-Tenant': TENANT,
+                'Content-Type': 'application/json'
+              },
+              cache: 'no-store'
+            })
+
+            if (campaignResponse.ok) {
+              const campaignData = await campaignResponse.json()
+              
+              if (campaignData.hasCampaignPrice && campaignData.priceId) {
+                // Use campaign price
+                priceId = campaignData.priceId
+                console.log(`✅ [STRIPE CONNECT] Using campaign price for product ${item.productId}:`, {
+                  originalPriceId: item.stripePriceId,
+                  campaignPriceId: priceId,
+                  campaignName: campaignData.campaignName
+                })
+              }
+            }
+          } catch (campaignError) {
+            console.warn('⚠️ [STRIPE CONNECT] Campaign price check failed (using original price):', campaignError.message)
+            // Continue with original price if campaign check fails
+          }
+        }
+
+        return {
+          variantId: item.variantKey || item.productId || `fallback-${index}`, // variantKey || productId || fallback
+          quantity: item.quantity,
+          stripePriceId: priceId
+        }
+      })
+    )
+
+    // Step 3: Build metadata for backend request
+    const sessionMetadata = {
+      tenant: TENANT, // ✅ Tenant ID from environment variable
+      source: 'tenant_website', // ✅ Source identifier
+      website: req.get('host') || 'glowhairdressing.se', // ✅ Website domain
+      ...requestMetadata // Include any additional metadata from frontend
+    }
+
+    // Step 4: Handle gift card purchase metadata
+    const giftCardItem = items.find(item => item.type === 'gift_card')
+    const isGiftCardPurchase = !!giftCardItem
+
+    if (isGiftCardPurchase && giftCardItem) {
+      // Convert from cents to SEK
+      const giftCardAmountInMajorUnits = giftCardItem.giftCardAmount 
+        ? Math.round(giftCardItem.giftCardAmount / 100).toString() 
+        : '0'
+      
+      sessionMetadata.product_type = 'giftcard'
+      sessionMetadata.giftcard_amount = giftCardAmountInMajorUnits
+      sessionMetadata.giftcard_currency = 'SEK'
+      sessionMetadata.source = 'tenant_webshop' // Override source for gift cards
+    }
+
+    // Step 5: Include gift card code in metadata if present
+    if (giftCardCodeToUse) {
+      sessionMetadata.giftCardCode = giftCardCodeToUse
+      console.log(`🎁 [STRIPE CONNECT] Forwarding gift card code in metadata: ${giftCardCodeToUse.substring(0, 4)}****`)
+    }
+
+    // Step 6: Build backend request body
+    const backendRequestBody = {
+      items: backendItems,
+      customerEmail: customerEmail || undefined,
+      successUrl: successUrl,
+      cancelUrl: cancelUrl,
+      ...(giftCardCodeToUse && { giftCardCode: giftCardCodeToUse }), // Explicitly include if present
+      metadata: sessionMetadata
+    }
+
+    console.log('📤 [STRIPE CONNECT] Forwarding to Source Portal backend:', {
+      itemsCount: backendItems.length,
+      hasGiftCardCode: !!giftCardCodeToUse,
+      tenant: TENANT
+    })
+
+    // Step 7: Call Source Portal backend endpoint
+    const backendCheckoutUrl = `${BACKEND_URL}/storefront/${TENANT}/checkout`
+    const backendResponse = await fetch(backendCheckoutUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': TENANT
+      },
+      body: JSON.stringify(backendRequestBody)
+    })
+
+    const backendData = await backendResponse.json()
+
+    if (!backendResponse.ok) {
+      console.error('❌ [STRIPE CONNECT] Backend checkout failed:', {
+        status: backendResponse.status,
+        error: backendData.error || backendData.message
+      })
+      return res.status(backendResponse.status).json({
+        success: false,
+        error: backendData.error || backendData.message || 'Checkout failed'
+      })
+    }
+
+    if (!backendData.success || !backendData.checkoutUrl) {
+      console.error('❌ [STRIPE CONNECT] Invalid response from backend:', backendData)
+      return res.status(500).json({
+        success: false,
+        error: 'Invalid response from checkout service'
+      })
+    }
+
+    // Step 8: Register checkout session for abandoned cart tracking
+    if (backendData.sessionId) {
+      try {
+        console.log('🛒 [ABANDONED CART] Registering session with customer portal:', backendData.sessionId)
+        
+        const trackPayload = {
+          sessionId: backendData.sessionId,
+          tenant: TENANT,
+          amountTotal: backendData.amountTotal || 0,
+          currency: backendData.currency || 'SEK',
+          customerEmail: customerEmail || null,
+          createdAt: new Date().toISOString()
+        }
+
+        const trackResponse = await fetch(`${BACKEND_URL}/api/carts/track`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Tenant': TENANT
+          },
+          body: JSON.stringify(trackPayload)
+        })
+
+        if (trackResponse.ok) {
+          const trackResult = await trackResponse.json()
+          if (trackResult.success) {
+            console.log('✅ [ABANDONED CART] Session registered successfully:', {
+              sessionId: backendData.sessionId,
+              tenant: TENANT
+            })
+          }
+        }
+      } catch (trackError) {
+        console.error('❌ [ABANDONED CART] Error registering session:', trackError)
+        // Continue anyway - this is not critical for checkout flow
+      }
+    }
+
+    // Step 9: Return checkout URL to frontend
+    console.log('✅ [STRIPE CONNECT] Checkout session created successfully:', {
+      sessionId: backendData.sessionId,
+      orderId: backendData.orderId
+    })
+
+    res.json({
+      success: true,
+      url: backendData.checkoutUrl,
+      checkoutUrl: backendData.checkoutUrl, // Alias for compatibility
+      sessionId: backendData.sessionId,
+      orderId: backendData.orderId,
+      expiresAt: backendData.expiresAt
+    })
+
+  } catch (error) {
+    console.error('❌ [STRIPE CONNECT] Error processing checkout:', error)
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to create checkout session' 
+    })
+  }
+})
+
+// Gift Card Verification Endpoint (Read-Only)
+// See: Backend_Implementation_for_New_Customers.md - Gift Cards section
+app.post('/api/gift-cards/verify', async (req, res) => {
+  try {
+    const { code } = req.body
+
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Gift card code is required'
+      })
+    }
+
+    // Format code (uppercase, trimmed)
+    const formattedCode = code.toUpperCase().trim()
+
+    console.log('🎁 [GIFT CARD] Verifying gift card code:', formattedCode.substring(0, 4) + '****')
+
+    // Call Source Portal backend gift card verification endpoint
+    const verifyUrl = `${BACKEND_URL}/api/storefront/${TENANT}/giftcards/verify`
+    const verifyResponse = await fetch(verifyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': TENANT
+      },
+      body: JSON.stringify({ code: formattedCode })
+    })
+
+    const verifyData = await verifyResponse.json()
+
+    if (!verifyResponse.ok) {
+      return res.status(verifyResponse.status).json({
+        success: false,
+        valid: false,
+        error: verifyData.error || verifyData.message || 'Invalid gift card code'
+      })
+    }
+
+    if (!verifyData.valid) {
+      return res.json({
+        success: true,
+        valid: false,
+        error: verifyData.error || 'Invalid gift card code'
+      })
+    }
+
+    // Return gift card details
+    res.json({
+      success: true,
+      valid: true,
+      balance: verifyData.balance || 0, // Balance in cents
+      expiresAt: verifyData.expiresAt || null
+    })
+
+  } catch (error) {
+    console.error('❌ [GIFT CARD] Error verifying gift card:', error)
+    res.status(500).json({
+      success: false,
+      valid: false,
+      error: 'Failed to verify gift card'
+    })
+  }
+})
+
 // Stripe webhook handler for payment events (must be BEFORE proxy route)
 // Note: This route must use express.raw() to get the raw body for signature verification
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
