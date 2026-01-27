@@ -697,9 +697,9 @@ export const createCheckoutSession = async (cartItems, getCheckoutPriceId, giftC
     // Call tenant backend checkout endpoint (/api/checkout)
     // This endpoint handles inventory validation, campaign price checking, gift card handling,
     // and forwards to Source Portal backend endpoint /storefront/{tenant}/checkout
-    const checkoutUrl = `${API_CONFIG.BASE_URL}/checkout`
+    const apiCheckoutUrl = `${API_CONFIG.BASE_URL}/checkout`
     
-    const response = await fetch(checkoutUrl, {
+    const response = await fetch(apiCheckoutUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
