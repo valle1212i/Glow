@@ -288,6 +288,14 @@ app.post('/api/checkout', async (req, res) => {
     const backendItems = await Promise.all(
       items.map(async (item, index) => {
         let priceId = item.stripePriceId
+        
+        // Log the price ID we received from frontend
+        console.log('🔍 [STRIPE CONNECT] Processing item:', {
+          variantKey: item.variantKey,
+          productId: item.productId,
+          receivedPriceId: item.stripePriceId,
+          quantity: item.quantity
+        })
 
         // Check campaign price if productId is available
         if (item.productId && item.stripePriceId) {
@@ -343,6 +351,15 @@ app.post('/api/checkout', async (req, res) => {
           }
         }
 
+        // Log the final price ID being sent to backend
+        console.log('📤 [STRIPE CONNECT] Final item for backend:', {
+          variantId: item.variantKey || item.productId || `fallback-${index}`,
+          quantity: item.quantity,
+          stripePriceId: priceId,
+          priceIdChanged: priceId !== item.stripePriceId,
+          originalPriceId: item.stripePriceId
+        })
+        
         return {
           variantId: item.variantKey || item.productId || `fallback-${index}`, // variantKey || productId || fallback
           quantity: item.quantity,
@@ -408,16 +425,60 @@ app.post('/api/checkout', async (req, res) => {
       body: JSON.stringify(backendRequestBody)
     })
 
-    const backendData = await backendResponse.json()
+    // Check content type before parsing
+    const contentType = backendResponse.headers.get('content-type') || ''
+    let backendData
+    
+    if (contentType.includes('application/json')) {
+      try {
+        backendData = await backendResponse.json()
+      } catch (parseError) {
+        const errorText = await backendResponse.text()
+        console.error('❌ [STRIPE CONNECT] Failed to parse backend JSON response:', parseError)
+        console.error('❌ [STRIPE CONNECT] Backend response text:', errorText.substring(0, 500))
+        return res.status(backendResponse.status).json({
+          success: false,
+          error: 'Invalid response from checkout service'
+        })
+      }
+    } else {
+      const errorText = await backendResponse.text()
+      console.error('❌ [STRIPE CONNECT] Backend returned non-JSON response:', {
+        status: backendResponse.status,
+        contentType: contentType,
+        responsePreview: errorText.substring(0, 500)
+      })
+      return res.status(backendResponse.status).json({
+        success: false,
+        error: 'Invalid response from checkout service'
+      })
+    }
 
     if (!backendResponse.ok) {
       console.error('❌ [STRIPE CONNECT] Backend checkout failed:', {
         status: backendResponse.status,
-        error: backendData.error || backendData.message
+        statusText: backendResponse.statusText,
+        error: backendData.error || backendData.message,
+        fullResponse: backendData
       })
+      
+      // Provide more helpful error messages for common issues
+      let errorMessage = backendData.error || backendData.message || 'Checkout failed'
+      
+      // Check for Stripe Connect onboarding errors
+      if (errorMessage.includes('aktiverat kortbetalningar') || 
+          errorMessage.includes('onboarding') ||
+          errorMessage.includes('card payments')) {
+        console.error('⚠️ [STRIPE CONNECT] Onboarding issue detected:', {
+          error: errorMessage,
+          suggestion: 'The Stripe Connect account needs to complete onboarding in the Stripe Dashboard',
+          action: 'Check Integration settings in the customer portal backend'
+        })
+      }
+      
       return res.status(backendResponse.status).json({
         success: false,
-        error: backendData.error || backendData.message || 'Checkout failed'
+        error: errorMessage
       })
     }
 

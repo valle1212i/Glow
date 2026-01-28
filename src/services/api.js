@@ -573,49 +573,54 @@ const fetchProductArticleNumber = async (stripePriceId, productId, productName) 
 }
 
 export const createCheckoutSession = async (cartItems, getCheckoutPriceId, giftCardCode = null) => {
-  // First, try to fetch missing articleNumbers from storefront API
+  // Always fetch correct articleNumber and stripePriceId from storefront API
+  // This ensures we use the correct price ID even if articleNumber already exists
   const itemsWithArticleNumbers = await Promise.all(
     cartItems.map(async (item) => {
       let articleNumber = item.articleNumber || item.variantId
       let correctStripePriceId = getCheckoutPriceId(item) // Default to current price ID
       
-      // If articleNumber is missing, try to fetch it from storefront API
-      if (!articleNumber) {
-        const stripePriceId = getCheckoutPriceId(item)
-        console.log('🔍 [STRIPE CONNECT] Fetching articleNumber for item:', {
-          name: item.name,
-          productId: item.productId,
-          stripePriceId: stripePriceId
-        })
-        
-        const result = await fetchProductArticleNumber(stripePriceId, item.productId, item.name)
-        
-        if (result) {
-          // result can be either a string (articleNumber) or an object { articleNumber, stripePriceId }
-          if (typeof result === 'object' && result.articleNumber) {
-            articleNumber = result.articleNumber
-            correctStripePriceId = result.stripePriceId // Use the correct price ID from API
-            console.log('✅ [STRIPE CONNECT] Found articleNumber and correct stripePriceId:', {
-              articleNumber: articleNumber,
-              stripePriceId: correctStripePriceId
-            })
-          } else if (typeof result === 'string') {
-            // Backward compatibility: if function returns just a string
-            articleNumber = result
-            console.log('✅ [STRIPE CONNECT] Found articleNumber:', articleNumber)
-          }
-          
-          // Update the item with articleNumber for future use
-          item.articleNumber = articleNumber
-        } else {
-          console.warn('⚠️ [STRIPE CONNECT] Could not fetch articleNumber for item:', item.name)
+      // Always fetch from API to get the correct price ID
+      // This is critical because price IDs can change and we need to use the one from the API
+      const stripePriceId = getCheckoutPriceId(item)
+      console.log('🔍 [STRIPE CONNECT] Fetching correct price ID from API for item:', {
+        name: item.name,
+        productId: item.productId,
+        currentPriceId: stripePriceId,
+        hasArticleNumber: !!articleNumber
+      })
+      
+      const result = await fetchProductArticleNumber(stripePriceId, item.productId, item.name)
+      
+      if (result) {
+        // result can be either a string (articleNumber) or an object { articleNumber, stripePriceId }
+        if (typeof result === 'object' && result.articleNumber) {
+          articleNumber = result.articleNumber
+          correctStripePriceId = result.stripePriceId // Use the correct price ID from API
+          console.log('✅ [STRIPE CONNECT] Found articleNumber and correct stripePriceId from API:', {
+            articleNumber: articleNumber,
+            correctStripePriceId: correctStripePriceId,
+            oldPriceId: stripePriceId,
+            priceIdChanged: correctStripePriceId !== stripePriceId
+          })
+        } else if (typeof result === 'string') {
+          // Backward compatibility: if function returns just a string
+          articleNumber = result
+          console.log('✅ [STRIPE CONNECT] Found articleNumber:', articleNumber)
+          // Note: If result is just a string, we keep the original price ID
         }
+        
+        // Update the item with articleNumber for future use
+        item.articleNumber = articleNumber
+      } else {
+        console.warn('⚠️ [STRIPE CONNECT] Could not fetch correct price ID from API for item:', item.name)
+        // Keep using the original price ID if API fetch fails
       }
       
       return {
         ...item,
         articleNumber: articleNumber,
-        correctStripePriceId: correctStripePriceId // Store the correct price ID
+        correctStripePriceId: correctStripePriceId // Store the correct price ID from API
       }
     })
   )
